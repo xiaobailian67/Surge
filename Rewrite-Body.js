@@ -26,12 +26,16 @@
 const methodMapping = {
 	"response-body-json-replace": "addProperty",
 	"response-body-json-add": "addProperty",
+	"request-body-json-replace": "addProperty",
+	 "request-body-json-add": "addProperty",
 	add: "addProperty",
 
 	"response-body-json-del": "deleteProperty",
+	"request-body-json-del": "deleteProperty",
 	del: "deleteProperty",
 
 	"response-body-json-regex": "regexReplace",
+	"request-body-json-regex": "regexReplace",
 	reg: "regexReplace",
 };
 
