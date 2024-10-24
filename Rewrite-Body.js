@@ -24,73 +24,69 @@
  * 根据传入的命令动态选择并调用相应的方法。
  */
 const methodMapping = {
-	"response-body-json-replace": "addProperty",
-	"response-body-json-add": "addProperty",
-	"request-body-json-replace": "addProperty",
-	 "request-body-json-add": "addProperty",
-	add: "addProperty",
+  "response-body-json-replace": "addProperty",
+  "response-body-json-add": "addProperty",
+  "request-body-json-replace": "addProperty",
+  "request-body-json-add": "addProperty",
+  add: "addProperty",
 
-	"response-body-json-del": "deleteProperty",
-	"request-body-json-del": "deleteProperty",
-	del: "deleteProperty",
+  "response-body-json-del": "deleteProperty",
+  "request-body-json-del": "deleteProperty",
+  del: "deleteProperty",
 
-	"response-body-json-regex": "regexReplace",
-	"request-body-json-regex": "regexReplace",
-	reg: "regexReplace",
+  "response-body-json-regex": "regexReplace",
+  "request-body-json-regex": "regexReplace",
+  reg: "regexReplace",
 };
 
 const methods = {
-	/**
-	 * 根据路径获取嵌套属性并执行回调
-	 * @param {Array} [path, value] - 属性路径和对应的值
-	 * @param {Function} callback - 在找到目标属性时执行的回调
-	 */
-	getNestedProperty([path, value], callback) {
-		const keys = path.split(".");
-		const lastKey = keys.pop();
-		const targetObj = keys.reduce(
-			(currentObj, key) => currentObj?.[key],
-			this.body
-		);
+  /**
+   * 根据路径获取嵌套属性并执行回调
+   * @param {Array} [path, value] - 属性路径和对应的值
+   * @param {Function} callback - 在找到目标属性时执行的回调
+   */
+  getNestedProperty([path, value], callback) {
+    const keys = path.split(".");
+    const lastKey = keys.pop();
+    const targetObj = keys.reduce(
+      (currentObj, key) => currentObj?.[key],
+      this.body
+    );
 
-		if (targetObj) {
-			return callback(targetObj, lastKey, value);
-		}
-	},
+    return targetObj && callback(targetObj, lastKey, value);
+  },
 
-	/**
-	 * 添加或替换 JSON 属性
-	 * @param {Array} pathAndValue - 包含路径和新值的数组
-	 */
-	addProperty(pathAndValue) {
-		this.getNestedProperty(pathAndValue, (obj, key, val) => {
-			if (val?.startsWith("$.")) {
-				val = this.getNestedProperty(
-					[val.replace("$.", "")],
-					(obj, key) => obj[key]
-				);
-			}
+  /**
+   * 添加或替换 JSON 属性
+   * @param {Array} pathAndValue - 包含路径和新值的数组
+   */
+  addProperty(pathAndValue) {
+    this.getNestedProperty(pathAndValue, (obj, key, val) => {
+      obj[key] = this.toJson(
+        val?.startsWith("$.")
+          ? this.getNestedProperty(val.slice(2), (o, k) => o[k])
+          : val
+      );
+    });
+  },
 
-			obj[key] = toJson(val);
-		});
-	},
+  /**
+   * 删除指定的 JSON 属性
+   * @param {String} path - 要删除的属性路径
+   */
+  deleteProperty(path) {
+    this.getNestedProperty([path], (obj, key) => 
+			isNaN(key) ? delete obj[key]  : obj.splice(key,1)
+  )},
 
-	/**
-	 * 删除指定的 JSON 属性
-	 * @param {String} path - 要删除的属性路径
-	 */
-	deleteProperty(path) {
-		this.getNestedProperty([path], (obj, key) => delete obj[key]);
-	},
-
-	/**
-	 * 使用正则表达式替换 JSON 字符串中的内容
-	 * @param {Array} [pattern, replacement] - 正则表达式模式和替换值
-	 */
-	regexReplace([pattern, replacement]) {
-		const regex = new RegExp(pattern, "g");
-		this.body = this.body.replace(regex, replacement);
-	},
+  /**
+   * 使用正则表达式替换 JSON 字符串中的内容
+   * @param {Array} [pattern, replacement] - 正则表达式模式和替换值
+   */
+  regexReplace([pattern, replacement]) {
+    const regex = new RegExp(pattern, "g");
+    this.body = this.body.replace(regex, replacement);
+  },
 };
 
 /**
@@ -100,29 +96,29 @@ const methods = {
  * @returns {Array} - 分割后的新数组
  */
 const splitArray = (arr, num = 2) => {
-	const newArray = [];
-	while (arr.length) {
-		newArray.push(arr.splice(0, num));
-	}
-	return newArray;
+  const newArray = [];
+  while (arr.length) {
+    newArray.push(arr.splice(0, num));
+  }
+  return newArray;
 };
 
 const toStr = (obj) => {
-	try {
-		if (typeof obj === "string") return obj;
-		return JSON.stringify(obj);
-	} catch (_) {
-		return obj;
-	}
+  try {
+    if (typeof obj === "string") return obj;
+    return JSON.stringify(obj);
+  } catch (_) {
+    return obj;
+  }
 };
 
 const toJson = (str) => {
-	try {
-		if (typeof str === "object") return str;
-		return JSON.parse(str);
-	} catch (_) {
-		return str;
-	}
+  try {
+    if (typeof str === "object") return str;
+    return JSON.parse(str);
+  } catch (_) {
+    return str;
+  }
 };
 
 /**
@@ -130,36 +126,38 @@ const toJson = (str) => {
  * @returns {String} - 修改后的 JSON 字符串
  */
 const handleBody = () => {
-	methods.body = this[$script.type.replace("http-", "$")].body;
+  methods.body = (this.$response ?? $request).body;
 
-	const re = new RegExp(`@(?=${Object.keys(methodMapping).join("|")})`, "g");
+  const re = new RegExp(`@(?=${Object.keys(methodMapping).join("|")})`, "g");
+	
+  $argument = $argument.replace(/\[(\d+)\]/g, ".$1")
 
-	$argument.split(re).forEach(($arg) => {
-		let [funName, ...tasks] = $arg.trim().split(/\s+/);
+  $argument.split(re).forEach(($arg) => {
+    let [funName, ...tasks] = $arg.trim().split(/\s+/);
 
-		const methodName = methodMapping[funName];
+    const methodName = methodMapping[funName];
 
-		methods.body =
-			methodName !== "regexReplace"
-				? toJson(methods.body)
-				: toStr(methods.body);
+    methods.body =
+      methodName !== "regexReplace"
+        ? toJson(methods.body)
+        : toStr(methods.body);
 
-		if (methodName !== "deleteProperty") {
-			tasks = splitArray(tasks);
-		}
+    if (methodName !== "deleteProperty") {
+      tasks = splitArray(tasks);
+    }
 
-		tasks.forEach((task) => {
-			methods[methodName]?.(task);
-		});
-	});
+    tasks.forEach((task) => {
+      methods[methodName]?.(task);
+    });
+  });
 
-	return toStr(methods.body);
+  return toStr(methods.body);
 };
 
 try {
-	const body = handleBody();
-	$done({ body });
+  const body = handleBody();
+  $done({ body });
 } catch (e) {
-	console.log("Error: " + e);
-	$done();
+  console.log("Error: " + e);
+  $done();
 }
