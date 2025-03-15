@@ -1,7 +1,8 @@
 class TaskProcessor {
-  #fulfilledIndexes; // 已完成任务的索引集合
+  #fulfilledData; // 已完成任务的索引集合
+  #pendingData; // 待定任务集合
   #failedIndexes; //已失败任务的索引
-  #results; // 所有任务的执行结果
+  #promises; // 所有任务的执行结果
   #shouldStopAll; //停止所有任务
   #stop; //停止单个任务
 
@@ -10,9 +11,10 @@ class TaskProcessor {
    * @private
    */
   #initializeState() {
-    this.#fulfilledIndexes = new Set();
+    this.#fulfilledData = new Map();
+    this.#pendingData = new Map();
     this.#failedIndexes = new Set();
-    this.#results = [];
+    this.#promises = [];
     this.#shouldStopAll = false;
   }
 
@@ -28,7 +30,7 @@ class TaskProcessor {
    * 停止所有任务并抛出错误
    * @param {string} [message] - 错误信息
    */
-  abort(message = '中止所有任务') {
+  abort(message = "中止所有任务") {
     this.#shouldStopAll = true;
     throw new Error(message);
   }
@@ -37,7 +39,7 @@ class TaskProcessor {
    * 停止单个任务并抛出错误
    * @param {string} [message]
    */
-  cancel(message = '取消任务') {
+  cancel(message = "取消任务") {
     this.#stop();
     throw new Error(message);
   }
@@ -59,7 +61,7 @@ class TaskProcessor {
    * @returns {boolean}
    */
   #isPromise(value) {
-    return Boolean(value && typeof value.then === 'function');
+    return Boolean(value && typeof value.then === "function");
   }
 
   /**
@@ -69,7 +71,7 @@ class TaskProcessor {
    */
   #normalizeTask(task) {
     if (this.#isPromise(task)) return task;
-    if (typeof task === 'function') return task;
+    if (typeof task === "function") return task;
     return () => task;
   }
 
@@ -79,18 +81,10 @@ class TaskProcessor {
    * @returns {Promise<{fulfilled?: Array, rejected?: Array}>}
    */
   async #resolvePromises() {
-    const results = {};
-    if (!this.#results.length) return {};
-
-    for (const promise of this.#results) {
-      try {
-        const result = await promise;
-        (results.fulfilled ??= []).push(result);
-      } catch (error) {
-        (results.rejected ??= []).push(error.toString());
-      }
-    }
-    return results;
+    return {
+      fulfilled: [...this.#fulfilledData.values()],
+      rejected: [...this.#pendingData.values()],
+    };
   }
 
   /**
@@ -102,47 +96,42 @@ class TaskProcessor {
   async #executeTasksWithLimit(tasks, concurrencyLimit) {
     const { promise, resolve } = Promise.withResolvers();
     const executing = new Set();
-    const count = new Set();
 
     for (let i = 0; i < tasks.length; i++) {
       this.#stop = () => this.#failedIndexes.add(i);
 
       // 如果该任务已完成，继续下一个任务
-      if (this.#fulfilledIndexes.has(i) || this.#failedIndexes.has(i)) {
-        count.add(i);
-        continue;
-      }
+      if (this.#fulfilledData.has(i) || this.#failedIndexes.has(i)) continue;
 
       const task = tasks[i];
       const p = this.#isPromise(task) ? task : Promise.resolve().then(task);
-      this.#results[i] = p;
+      this.#promises[i] = p;
 
       const e = p
-        .then(() => {
+        .then((result) => {
           executing.delete(e);
-          this.#fulfilledIndexes.add(i);
+          this.#pendingData.delete(i);
+          this.#fulfilledData.set(i, result);
         })
+        .catch((err) => this.#pendingData.set(i, err.message ?? err)
         .finally(() => {
-          count.add(i);
           if (this.#shouldStopAll) {
-            this.#results = this.#results.filter((_, index) =>
-              count.has(index),
-            );
             resolve(true);
-          } else if (count.size === this.#results.length) {
+          } else if (
+            this.#fulfilledData.size + this.#pendingData.size ===
+            this.#promises.length
+          ) {
             resolve(
-              this.#fulfilledIndexes.size + this.#failedIndexes.size >=
-                tasks.length,
+              this.#fulfilledData.size + this.#failedIndexes.size >=
+                tasks.length
             );
           }
         });
 
       executing.add(e);
-
-      if (executing.size >= concurrencyLimit) {
-        await Promise.race(executing).catch(() => {});
-        if (this.#shouldStopAll) break;
-      }
+      executing.size >= concurrencyLimit &&
+        (await Promise.race(executing).catch(() => {}));
+      if (this.#shouldStopAll) break;
     }
 
     return promise;
@@ -169,7 +158,7 @@ class TaskProcessor {
     while (maxRetry-- && !this.#shouldStopAll) {
       const isFulfilled = await this.#executeTasksWithLimit(
         tasks,
-        concurrencyLimit,
+        concurrencyLimit
       );
 
       if (isFulfilled) break;
@@ -179,8 +168,8 @@ class TaskProcessor {
     return this.#resolvePromises();
   }
 }
-/*
 
+/*
 //使用范例
 
 function sleep(ms) {
@@ -206,9 +195,10 @@ const test = async () => {
     async () => {
       await sleep(2);
       $.log('执行2');
-      taskProcessor.halt("2 停止所有任务");
-      //taskProcessor.abort("2 停止所有任务并抛出错误");
+      //taskProcessor.halt("2 停止所有任务");
+      taskProcessor.abort('2 停止所有任务并抛出错误');
       //taskProcessor.cancel("2 停止单个任务并抛出错误");
+      //throw 2
     },
   ];
 
@@ -216,7 +206,8 @@ const test = async () => {
     tasks,
     maxRetry: 2, //重复执行错误任务次数
   });
-  $.log('结果：' + JSON.stringify(result));
+
+  $.log(result);
 };
 
 test();
