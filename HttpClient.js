@@ -1,7 +1,7 @@
 /**
  * HTTP客户端 - 提供灵活的HTTP请求功能和钩子系统
  */
-class HttpClient {
+export class HttpClient {
   #hooks; // 存储请求、成功和失败钩子
   #timeout; // 默认超时时间(秒)
   #coreHooks; // 核心钩子引用
