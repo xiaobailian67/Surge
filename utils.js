@@ -1,14 +1,14 @@
 /**
  * HTTP客户端 - 提供灵活的HTTP请求功能和钩子系统
  */
-export class HttpClient {
+class HttpClient {
   #hooks; // 存储请求、成功和失败钩子
   #timeout; // 默认超时时间(秒)
   #coreHooks; // 核心钩子引用
 
   /**
-   * 构造函数 - 返回对象函数实例
-   *
+   * 构造函数
+   * @param {number} timeout - 默认超时时间(秒)
    */
   constructor() {
     this.#hooks = {
@@ -18,8 +18,8 @@ export class HttpClient {
     };
 
     this.#initDefaults(); // 初始化默认设置
+    this.#initHttpMethods(); // 初始化请求方法
     this.#initCoreHooks(); // 初始化核心钩子
-    return this.#initHttpMethods(); // 初始化HTTP方法
   }
 
   /**
@@ -29,19 +29,68 @@ export class HttpClient {
    */
   static create(config = {}) {
     const client = new HttpClient(config.$timeout || 4);
-    if (Object.keys(config).length) {
+    if (Object.keys(config).length > 0) {
       client.config(config);
     }
     return client;
   }
   /**
-   * 从当前实例创建新实例-继承配置
+   * 从当前实例创建新实例
    * @param {Object} extraConfig - 额外配置(可选)
    * @returns {HttpClient} 新客户端实例
    */
   create(extraConfig) {
     // 调用静态create方法
-    return this.constructor.create(extraConfig ?? this.defaults);
+    return HttpClient.create(extraConfig ?? this.defaults);
+  }
+  /**
+   * 发送HTTP请求
+   * @param {Object|string} opt - 请求选项或URL
+   * @returns {Promise} 请求结果
+   */
+  async #request(opt, t = 4) {
+    const { promise, resolve, reject } = Promise.withResolvers();
+    // HTTP错误构造器
+    const HTTPError = (e, res, req) =>
+      Object.assign(new Error(e), {
+        name: "HTTPError",
+        request: req,
+        response: res,
+      });
+
+    // 处理请求
+    const op = await this.#runReqHook(opt);
+    // 响应处理函数
+    const handleRes = async (res) => {
+      try {
+        res.status ??= res.statusCode;
+        res.json = () => JSON.parse(res.body);
+
+        resolve(
+          await (res.error || res.status < 200 || res.status > 307
+            ? this.#runFailHook(HTTPError(res.error, res, op), reject)
+            : this.#runOkHook(res, op))
+        );
+      } catch (e) {
+        reject(e);
+      }
+    };
+
+    // 设置超时
+    const timer = setTimeout(
+      () => reject(HTTPError("timeout", null, op)),
+      (op.$timeout ?? t) * 1000
+    );
+
+    // 适配不同环境的HTTP客户端
+    globalThis.$httpClient?.[op.method || "get"](op, (error, resp, body) => {
+      handleRes({ error, ...resp, body });
+    });
+
+    globalThis.$task?.fetch(op).then(handleRes, handleRes);
+
+    // 返回promise并清理超时定时器
+    return promise.finally(() => clearTimeout(timer));
   }
 
   /**
@@ -57,7 +106,7 @@ export class HttpClient {
    * @private
    */
   #runFailHook(error, reject) {
-    if (!this.#hooks["fail"].size) return reject(error);
+    if (!this.#hooks["fail"].size) reject(error);
     return this.#runHooks("fail", error);
   }
 
@@ -134,75 +183,6 @@ export class HttpClient {
   }
 
   /**
-   * 初始化HTTP方法
-   * @private
-   */
-  #initHttpMethods() {
-    /**
-     * 发送HTTP请求
-     * @param {Object|string} opt - 请求选项或URL
-     * @returns {Promise} 请求结果
-     */
-    const request = async (opt, t = 4) => {
-      const { promise, resolve, reject } = Promise.withResolvers();
-      // HTTP错误构造器
-      const HTTPError = (e, res, req) =>
-        Object.assign(new Error(e), {
-          name: "HTTPError",
-          request: req,
-          response: res,
-        });
-
-      // 处理请求
-      const op = await this.#runReqHook(opt);
-      // 响应处理函数
-      const handleRes = async (res) => {
-        try {
-          res.status ??= res.statusCode;
-          res.json = () => JSON.parse(res.body);
-
-          resolve(
-            await (res.error || res.status < 200 || res.status > 307
-              ? this.#runFailHook(HTTPError(res.error, res, op), reject)
-              : this.#runOkHook(res, op))
-          );
-        } catch (e) {
-          reject(e);
-        }
-      };
-
-      // 设置超时
-      const timer = setTimeout(
-        () => reject(HTTPError("timeout", null, op)),
-        (op.$timeout ?? t) * 1000
-      );
-
-      // 适配不同环境的HTTP客户端
-      globalThis.$httpClient?.[op.method](op, (error, resp, body) => {
-        handleRes({ error, ...resp, body });
-      });
-
-      globalThis.$task?.fetch(op).then(handleRes, handleRes);
-
-      // 返回promise并清理超时定时器
-      return promise.finally(() => clearTimeout(timer));
-    };
-
-    //创建请求方法
-    const methods = ["get", "post", "put", "delete", "head", "patch", "options"];
-    methods.forEach((method) => {
-      request[method] = (op, t) => {
-        op.url ?? (op = { url: op });
-        return request({ ...op, method }, t);
-      };
-    });
-
-    //骚操作 返返回一个函数并修改原型为HttpClient实例
-    Object.setPrototypeOf(request, this);
-    return request;
-  }
-
-  /**
    * 初始化核心钩子
    * @private
    */
@@ -210,10 +190,8 @@ export class HttpClient {
     this.#coreHooks = {
       // 处理默认选项
       useDefaultOpt: this.useReq("default", (req) => {
-        if (!req.url) req = { url: req };
         const { headers = {}, $auto = true } = req;
         return {
-          method: "get",
           "auto-redirect": $auto,
           opts: { redirection: $auto },
           insecure: true,
@@ -248,9 +226,10 @@ export class HttpClient {
       }),
 
       // 自动处理二进制响应的钩子
-      useBinaryResponse: this.useRes("default", (res, req) => {
+      useBinaryResponse: this.useRes("default", (res,req) => {
         const { bodyBytes } = res;
-        if (req.headers["binary-mode"] && bodyBytes) {
+        const { headers } = req
+        if (headers["binary-mode"] && bodyBytes) {
           res.body = new Uint8Array(bodyBytes);
         }
         return res;
@@ -263,11 +242,29 @@ export class HttpClient {
         if (content?.includes("application/json")) {
           try {
             res.body = res.json();
-          } catch {}
+          } catch (e) {
+            // JSON解析失败时保持原始body
+          }
         }
         return res;
       }),
     };
+  }
+
+  /**
+   * 初始化HTTP方法
+   * @private
+   */
+  #initHttpMethods() {
+    const methods = ["get", "post", "put", "delete", "head", "patch", "options"];
+
+    methods.forEach(
+      (method) =>
+        (this[method] = (op, method) => {
+          if (!op.url) op = { url: op };
+          return this.#request({ ...op, method });
+        })
+    );
   }
 
   /**
@@ -294,7 +291,7 @@ export class HttpClient {
             return true;
           }
           coreHooks.get(key)?.disable(value);
-          return Reflect.set(...arguments);
+          return Reflect.set(target, key, value);
         },
       }
     );
@@ -326,3 +323,5 @@ export class HttpClient {
     return this;
   }
 }
+
+expor const $http = HttpClient.create();
