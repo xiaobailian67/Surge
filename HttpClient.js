@@ -11,7 +11,7 @@ export class HttpClient {
    *
    */
   constructor() {
-    this.hooks = {
+    this.#hooks = {
       req: new Set(), // 请求前钩子
       ok: new Set(), // 成功响应钩子
       fail: new Set(), // 失败响应钩子
@@ -57,7 +57,7 @@ export class HttpClient {
    * @private
    */
   #runFailHook(error, reject) {
-    if (!this.hooks["fail"].size) return reject(error);
+    if (!this.#hooks["fail"].size) return reject(error);
     return this.#runHooks("fail", error);
   }
 
@@ -75,7 +75,7 @@ export class HttpClient {
    */
   async #runHooks(type, ...args) {
     const value = args[0];
-    for (let hook of this.hooks[type]) {
+    for (let hook of this.#hooks[type]) {
       const { isOn = true } = hook;
       if (!isOn) continue;
       args[0] = (await hook(...args)) ?? args[0];
@@ -89,34 +89,34 @@ export class HttpClient {
    * 添加请求钩子
    */
   useReq(...args) {
-    return this.addHook("req", ...args);
+    return this.#addHook("req", ...args);
   }
 
   /**
    * 添加响应钩子
    */
   useRes(...args) {
-    return this.addHook("ok", ...args);
+    return this.#addHook("ok", ...args);
   }
 
   /**
    * 添加错误钩子
    */
   useErr(...args) {
-    return this.addHook("fail", ...args);
+    return this.#addHook("fail", ...args);
   }
 
   /**
    * 通用添加钩子方法
    * @private
    */
-  addHook(type, ...args) {
+  #addHook(type, ...args) {
     const fn = args.pop();
     if (typeof fn !== "function") return;
     if (args.includes("default")) fn.default = true;
-    this.hooks[type].add(fn);
+    this.#hooks[type].add(fn);
     return {
-      remove: () => this.hooks[type].delete(fn),
+      remove: () => this.#hooks[type].delete(fn),
       disable: (bool) => (fn.isOn = bool),
       status: () => fn.isOn ?? true,
     };
@@ -127,8 +127,8 @@ export class HttpClient {
    * @param {string} type - 可选,指定钩子类型
    */
   clear(type) {
-    if (type) this.hooks[type]?.clear();
-    Object.values(this.hooks).forEach((hookSet) => {
+    if (type) this.#hooks[type]?.clear();
+    Object.values(this.#hooks).forEach((hookSet) => {
       [...hookSet].filter((fn) => !fn.default).forEach((fn) => hookSet.delete(fn));
     });
   }
@@ -178,7 +178,7 @@ export class HttpClient {
       );
 
       // 适配不同环境的HTTP客户端
-      globalThis.$httpClient?.[op.metchod](op, (error, resp, body) => {
+      globalThis.$httpClient?.[op.method](op, (error, resp, body) => {
         handleRes({ error, ...resp, body });
       });
 
@@ -213,7 +213,7 @@ export class HttpClient {
         if (!req.url) req = { url: req };
         const { headers = {}, $auto = true } = req;
         return {
-          metchod: "get",
+          method: "get",
           "auto-redirect": $auto,
           opts: { redirection: $auto },
           insecure: true,
@@ -326,45 +326,3 @@ export class HttpClient {
     return this;
   }
 }
-
-/**
- * 使用示例 - 创建汇率API客户端
- */
-// const $http = HttpClient.create({
-//   baseURL: "https://api.exchangerate-api.com/v4/latest",
-//   useAutoJson: false,
-//   $timeout: 2,
-//   transformRes(res) {
-//     return res.body;
-//   },
-// });
-
-// // 发送请求获取人民币汇率
-// $http
-//   .config({
-//     headers: {
-//       "User-Agent":
-//         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/107.0.0.0 Safari/537.36",
-//     },
-//   })
-//   .get("/CNY")
-//   .then((data) => {
-//     console.log(data);
-//     $done();
-//   })
-//   .catch((e) => {
-//     console.log(e);
-//     $done();
-//   });
-
-// const $api = $http.create({});
-
-// $api("https://www.baidu.com")
-//   .then((res) => {
-//     console.log(res.body);
-//     $done();
-//   })
-//   .catch((e) => {
-//     console.log(e);
-//     $done();
-//   });
