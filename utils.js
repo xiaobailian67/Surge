@@ -324,4 +324,4 @@ class HttpClient {
   }
 }
 
-expor const $http = HttpClient.create();
+export const $http = HttpClient.create();
