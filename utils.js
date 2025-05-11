@@ -323,7 +323,7 @@ class HttpClient {
   }
 }
 
-export const $http = new HttpClient();
+export const $http = HttpClient.create();
 
 export const $prs = {
   get: globalThis.$prefs?.valueForKey ?? $persistentStore.read,
