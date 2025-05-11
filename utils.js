@@ -325,3 +325,54 @@ class HttpClient {
 }
 
 export const $http = HttpClient.create();
+
+export const $prs = {
+  get: this.$prefs?.valueForKey ?? $persistentStore.read,
+  getJson: (key) => JSON.parse($prs.get(key), null, 4),
+  set: (key, value) =>
+    (this.$prefs?.setValueForKey ?? $persistentStore.write)(value, key),
+  setJson: (key, obj) => $prs.set(key, JSON.stringify(obj)),
+};
+
+export const $msg = (...a) => {
+  const { $open, $copy, $media, ...r } =
+    typeof a.at(-1) === "object" && a.pop();
+  const [t = "", s = "", b = ""] = a;
+  (this.$notify ??= $notification.post)(t, s, b, {
+    action: $copy ? "clipboard" : "open-url",
+    text: $copy,
+    "update-pasteboard": $copy,
+    clipboard: $copy,
+    "open-url": $open,
+    openUrl: $open,
+    url: $open,
+    mediaUrl: $media,
+    "media-url": $media,
+    ...r,
+  });
+};
+
+export const $log = Object.assign(
+  (...args) =>
+    args.forEach((i) =>
+      console.log(
+        i?.stack
+          ? `${i.toString()}\n${i.stack}`
+          : typeof i === "object"
+          ? JSON.stringify(i, null, 4)
+          : String(i)
+      )
+    ),
+  {
+    time(id) {
+      this.time[id] = Date.now();
+    },
+    timeEnd(id) {
+      this(Date.now() - this.time[id]);
+    },
+    show(...a) {
+      return (b) => b && this(...a);
+    },
+  }
+);
+
