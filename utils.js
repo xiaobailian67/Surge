@@ -86,6 +86,7 @@ class HttpClient {
     globalThis.$httpClient?.[op.method || "get"](op, (error, resp, body) => {
       handleRes({ error, ...resp, body });
     });
+    
 
     globalThis.$task?.fetch(op).then(handleRes, handleRes);
 
@@ -196,7 +197,7 @@ class HttpClient {
           opts: { redirection: $auto },
           insecure: true,
           headers,
-          ...this.defaults,
+          ...JSON.parse(JSON.stringify(this.defaults)),
           ...req,
         };
       }),
@@ -242,9 +243,7 @@ class HttpClient {
         if (content?.includes("application/json")) {
           try {
             res.body = res.json();
-          } catch (e) {
-            // JSON解析失败时保持原始body
-          }
+          } catch {}
         }
         return res;
       }),
@@ -260,7 +259,7 @@ class HttpClient {
 
     methods.forEach(
       (method) =>
-        (this[method] = (op, method) => {
+        (this[method] = (op) => {
           if (!op.url) op = { url: op };
           return this.#request({ ...op, method });
         })
@@ -323,57 +322,3 @@ class HttpClient {
     return this;
   }
 }
-
-export const $http = HttpClient.create();
-
-export const $prs = {
-  get: globalThis.$prefs?.valueForKey ?? $persistentStore.read,
-  getJson: (key) => JSON.parse($prs.get(key), null, 4),
-  set: (key, value) =>
-    (globalThis.$prefs?.setValueForKey ?? $persistentStore.write)(value, key),
-  setJson: (key, obj) => $prs.set(key, JSON.stringify(obj)),
-};
-
-export const $msg = (...a) => {
-  const { $open, $copy, $media, ...r } =
-    typeof a.at(-1) === "object" && a.pop();
-  const [t = "", s = "", b = ""] = a;
-  (globalThis.$notify ??= $notification.post)(t, s, b, {
-    action: $copy ? "clipboard" : "open-url",
-    text: $copy,
-    "update-pasteboard": $copy,
-    clipboard: $copy,
-    "open-url": $open,
-    openUrl: $open,
-    url: $open,
-    mediaUrl: $media,
-    "media-url": $media,
-    ...r,
-  });
-};
-
-export const $log = Object.assign(
-  (...args) =>
-    args.forEach((i) =>
-      console.log(
-        i?.stack
-          ? `${i.toString()}\n${i.stack}`
-          : typeof i === "object"
-          ? JSON.stringify(i, null, 4)
-          : String(i)
-      )
-    ),
-  {
-    time(id) {
-      globalThis.$log.time[id] = Date.now();
-    },
-    timeEnd(id) {
-      globalThis.$log(Date.now() - globalThis.$log.time[id]);
-    },
-    show(...a) {
-      return (b) => b && globalThis.$log(...a);
-    },
-    time: {}
-  }
-);
-
