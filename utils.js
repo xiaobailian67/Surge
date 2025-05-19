@@ -434,13 +434,13 @@ export const $log = Object.assign(
     ),
   {
     time(id) {
-      globalThis.$log.time[id] = Date.now();
+      $log.time[id] = Date.now();
     },
     timeEnd(id) {
-      globalThis.$log(Date.now() - globalThis.$log.time[id]);
+      $log(`${Date.now() - $log.time[id]}ms`);
     },
     show(...a) {
-      return (b) => b && globalThis.$log(...a);
+      return (b) => b && $log(...a);
     },
   }
 );
