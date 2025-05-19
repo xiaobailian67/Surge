@@ -442,6 +442,5 @@ export const $log = Object.assign(
     show(...a) {
       return (b) => b && globalThis.$log(...a);
     },
-    time: {}
   }
 );
