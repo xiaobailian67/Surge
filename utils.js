@@ -73,7 +73,6 @@ class HttpClient {
   }
 
   _hooks; // 存储请求、成功和失败钩子
-  _timeout; // 默认超时时间(秒)
   _coreHooks; // 核心钩子引用
 
   /**
