@@ -1,10 +1,10 @@
 const myTypeof = (arg) => {
   if (arg === null) return "null";
   if (arg === undefined) return "undefined";
-  if (Array.isArray(arg)) return "[]";
+  if (Array.isArray(arg)) return "array";
   const type = typeof arg;
   if (type === "function") return "Function";
-  return type === "object" ? "{}" : type;
+  return type;
 };
 
 // 智能分割联合类型（考虑所有括号嵌套）
@@ -157,7 +157,7 @@ const parseType = Object.assign(
       (typeStr) => {
         if (!typeStr.endsWith("[]")) return;
 
-        let elementTypeStr = typeStr.slice(0, -2);
+        let elementTypeStr = typeStr.slice(0, -2) || "array";
 
         // 如果元素类型被括号包围，去掉括号
         if (elementTypeStr.startsWith("(") && elementTypeStr.endsWith(")")) {
@@ -169,13 +169,6 @@ const parseType = Object.assign(
           elementType: parseType(elementTypeStr),
           isHomogeneous: true,
         };
-      },
-
-      // 括号类型解析 - 处理 (type) 格式
-      (typeStr) => {
-        if (!typeStr.startsWith("(") || !typeStr.endsWith(")")) return;
-
-        return parseType(typeStr.slice(1, -1));
       },
 
       // 异质数组/字面量数组解析 - 处理 [a,b,c] 格式
@@ -310,10 +303,10 @@ const matchesTypeRecursive = Object.assign(
 
     // 数组类型匹配 - 处理同质数组(string[])和异质数组([string,number])
     array(actual, typeInfo) {
-      if (myTypeof(actual) !== "[]") return false;
+      if (myTypeof(actual) !== "array") return false;
       if (typeInfo.isHomogeneous) {
-        // 同质数组：所有元素必须是同一类型
-        !actual.length && actual.push(undefined); // 处理空数组情况
+        // 同质数组：所有元素必须匹配同一类型
+        actual.length || actual.push([]); // 确保数组不为空
 
         return actual.every((item) => matchesTypeRecursive(item, typeInfo.elementType));
       }
@@ -326,7 +319,7 @@ const matchesTypeRecursive = Object.assign(
 
     // 字面量数组匹配 - 精确匹配特定值的数组 ([1,2,3], ["a","b"])
     literalArray(actual, typeInfo) {
-      if (myTypeof(actual) !== "[]") return false;
+      if (myTypeof(actual) !== "array") return false;
       if (actual.length !== typeInfo.values.length) return false;
       return actual.every((item, i) => item === typeInfo.values[i]);
     },
@@ -338,7 +331,7 @@ const matchesTypeRecursive = Object.assign(
 
     // 对象类型匹配 - 处理索引签名对象和具体属性对象
     object(actual, typeInfo) {
-      if (myTypeof(actual) !== "{}") return false;
+      if (myTypeof(actual) !== "object") return false;
 
       if (typeInfo.indexSignature) {
         // 索引签名对象：{[key:string]:number} - 动态键名，固定类型
@@ -448,11 +441,12 @@ const overloader = () => {
 
 export default overloader;
 
-//测试
+//测试;
 // const calc = overloader();
 
-// calc.add("{data:{[key:string]: any}}", (...args) => {
+// calc.add("[ 1, string ]", (...args) => {
+//   console.log("匹配成功");
 //   console.log(JSON.stringify(args));
 // });
-// calc({ data: { a: "1" } });
+// calc([1, "2"]);
 // $done();
