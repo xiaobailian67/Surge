@@ -320,13 +320,12 @@ const matchesTypeRecursive = Object.assign(
         !actual.length && actual.push(undefined); // 处理空数组情况
 
         return actual.every((item) => matchesTypeRecursive(item, typeInfo.elementType));
-      } else {
-        // 异质数组：按位置匹配不同类型，长度必须一致
-        if (actual.length !== typeInfo.elementTypes.length) return false;
-        return actual.every((item, i) =>
-          matchesTypeRecursive(item, typeInfo.elementTypes[i])
-        );
       }
+      // 异质数组：按位置匹配不同类型，长度必须一致
+      if (actual.length !== typeInfo.elementTypes.length) return false;
+      return actual.every((item, i) =>
+        matchesTypeRecursive(item, typeInfo.elementTypes[i])
+      );
     },
 
     // 字面量数组匹配 - 精确匹配特定值的数组 ([1,2,3], ["a","b"])
