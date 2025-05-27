@@ -373,14 +373,14 @@ const matchesTypeRecursive = Object.assign(
     // 基础类型匹配 - 匹配原始类型 (string, number, boolean等)
     primitive(actual, typeInfo) {
       const actualType = myTypeof(actual);
-
+      let { type } = typeInfo;
       // 处理可选类型：string? -> string|undefined
       if (typeInfo.optional) {
-        typeInfo.type = typeInfo.type.replace("?", "|undefined").trim();
+        type = type.replace("?", "|undefined").trim();
       }
 
       // 支持联合基础类型：string|number|any
-      const types = typeInfo.type.split("|");
+      const types = type.split("|");
       return types.includes("any") || types.includes(actualType);
     },
   }
