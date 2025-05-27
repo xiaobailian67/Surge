@@ -87,11 +87,7 @@ const splitArrayElements = (str) => {
 };
 
 // 智能分割对象属性
-const splitObjectProperties = (str) => {
-  const result = splitArrayElements(str); // 逻辑相同
-
-  return result;
-};
+const splitObjectProperties = splitArrayElements;
 
 // 找到属性的冒号位置（考虑嵌套）- 改进版
 const findPropertyColon = (str) => {
@@ -451,3 +447,12 @@ const overloader = () => {
 };
 
 export default overloader;
+
+//测试
+// const calc = overloader();
+
+// calc.add("{data:{[key:string]: any}}", (...args) => {
+//   console.log(JSON.stringify(args));
+// });
+// calc({ data: { a: "1" } });
+// $done();
