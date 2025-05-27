@@ -383,9 +383,7 @@ const matchesTypeRecursive = Object.assign(
 const matchesType = (actual, typePattern) => {
   // 获取缓存或解析
   const typeInfo = parseType.cached(typePattern);
-  const result = matchesTypeRecursive(actual, typeInfo);
-
-  return result;
+  return matchesTypeRecursive(actual, typeInfo);
 };
 
 // 检查参数列表是否匹配类型模式列表
