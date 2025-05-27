@@ -235,32 +235,32 @@ const parseType = Object.assign(
               valueType,
             },
           };
-        } else {
-          // 具体属性对象：{prop1:type1, prop2?:type2}
-          const properties = {};
-          const props = splitObjectProperties(content);
-
-          props.forEach((prop) => {
-            const colonIndex = findPropertyColon(prop);
-            if (colonIndex > 0) {
-              const key = prop.slice(0, colonIndex).trim();
-              const type = prop.slice(colonIndex + 1).trim();
-
-              const isOptional = key.endsWith("?");
-              const cleanKey = isOptional ? key.slice(0, -1) : key;
-
-              properties[cleanKey] = {
-                type: parseType(type),
-                optional: isOptional,
-              };
-            }
-          });
-
-          return {
-            kind: "object",
-            properties,
-          };
         }
+
+        // 具体属性对象：{prop1:type1, prop2?:type2}
+        const properties = {};
+        const props = splitObjectProperties(content);
+
+        props.forEach((prop) => {
+          const colonIndex = findPropertyColon(prop);
+          if (colonIndex > 0) {
+            const key = prop.slice(0, colonIndex).trim();
+            const type = prop.slice(colonIndex + 1).trim();
+
+            const isOptional = key.endsWith("?");
+            const cleanKey = isOptional ? key.slice(0, -1) : key;
+
+            properties[cleanKey] = {
+              type: parseType(type),
+              optional: isOptional,
+            };
+          }
+        });
+
+        return {
+          kind: "object",
+          properties,
+        };
       },
 
       // 字面量类型解析 - 处理具体值 1, "hello", true
