@@ -83,6 +83,22 @@ const splitArrayElements = splitAny(",");
 const splitObjectProperties = splitArrayElements;
 
 /**
+ * 分离索引签名和具体属性对象
+ * @param {string} content - 对象内容字符串
+ * @returns {Array} 分离后的索引签名和属性对象数组
+ * @description 考虑索引签名和具体属性对象的区别
+ */
+const separateIndexSignature = (str) => {
+  const content = str.split(",");
+  const index = content.findIndex((prop) => prop.startsWith("[key:"));
+  const indexSignatureMatch = index !== -1 ? content.splice(index, 1)[0] : "";
+  return [
+    content.join(",").replace(/,$/, ""),
+    indexSignatureMatch.match(/^\s*\[(.+?):\s*(.+?)\]\s*:\s*(.+)$/),
+  ];
+};
+
+/**
  * 找到属性的冒号位置（考虑嵌套）- 改进版
  * @param {string} str - 属性字符串
  * @returns {number} 冒号的位置索引，如果没找到则返回-1
@@ -211,46 +227,49 @@ const parseType = Object.assign(
       // 对象类型解析 - 处理 {key:value} 格式
       (typeStr) => {
         if (!typeStr.startsWith("{") || !typeStr.endsWith("}")) return;
+        let indexSignature;
+        let properties;
 
-        const content = typeStr.slice(1, -1);
+        // 分离索引签名和具体属性对象
+        const [content, indexSignatureMatch] = separateIndexSignature(
+          typeStr.slice(1, -1)
+        );
 
         // 检查是否为索引签名：{[key:string]:number}
-        const indexSignatureMatch = content.match(/^\s*\[(.+?):\s*(.+?)\]\s*:\s*(.+)$/);
         if (indexSignatureMatch) {
           const keyType = parseType(indexSignatureMatch[2].trim());
           const valueType = parseType(indexSignatureMatch[3].trim());
 
-          return {
-            kind: "object",
-            indexSignature: {
-              keyType,
-              valueType,
-            },
+          indexSignature = {
+            keyType,
+            valueType,
           };
         }
 
         // 具体属性对象：{prop1:type1, prop2?:type2}
-        const properties = {};
-        const props = splitObjectProperties(content);
+        if (content) {
+          const props = splitObjectProperties(content);
+          props.forEach((prop) => {
+            const colonIndex = findPropertyColon(prop);
+            if (colonIndex > 0) {
+              const key = prop.slice(0, colonIndex).trim();
+              const type = prop.slice(colonIndex + 1).trim();
 
-        props.forEach((prop) => {
-          const colonIndex = findPropertyColon(prop);
-          if (colonIndex > 0) {
-            const key = prop.slice(0, colonIndex).trim();
-            const type = prop.slice(colonIndex + 1).trim();
+              const isOptional = key.endsWith("?");
+              const cleanKey = isOptional ? key.slice(0, -1) : key;
 
-            const isOptional = key.endsWith("?");
-            const cleanKey = isOptional ? key.slice(0, -1) : key;
-
-            properties[cleanKey] = {
-              type: parseType(type),
-              optional: isOptional,
-            };
-          }
-        });
+              properties = {};
+              properties[cleanKey] = {
+                type: parseType(type),
+                optional: isOptional,
+              };
+            }
+          });
+        }
 
         return {
           kind: "object",
+          indexSignature,
           properties,
         };
       },
@@ -339,21 +358,12 @@ const matchesTypeRecursive = Object.assign(
     // 对象类型匹配 - 处理索引签名对象和具体属性对象
     object(actual, typeInfo) {
       if (myTypeof(actual) !== "object") return false;
+      // 用于过滤索引签名中已匹配的键
+      const filterKeys = [];
 
-      if (typeInfo.indexSignature) {
-        // 索引签名对象：{[key:string]:number} - 动态键名，固定类型
-        return Object.entries(actual).every(([key, value]) => {
-          const keyMatches = matchesTypeRecursive(key, typeInfo.indexSignature.keyType);
-          const valueMatches = matchesTypeRecursive(
-            value,
-            typeInfo.indexSignature.valueType
-          );
-
-          return keyMatches && valueMatches;
-        });
-      } else if (typeInfo.properties) {
+      if (typeInfo.properties) {
         // 具体属性对象：{name:string, age?:number} - 固定属性名和类型
-        return Object.keys(typeInfo.properties).every((key) => {
+        const isProperties = Object.keys(typeInfo.properties).every((key) => {
           const propInfo = typeInfo.properties[key];
           const hasProperty = actual.hasOwnProperty(key);
           // 可选属性可以不存在
@@ -364,10 +374,35 @@ const matchesTypeRecursive = Object.assign(
           // 必需属性必须存在且类型匹配
           const propMatches =
             hasProperty && matchesTypeRecursive(actual[key], propInfo.type);
-
+          propMatches && filterKeys.push(key);
           return propMatches;
         });
+
+        //如果具体属性对象不匹配，直接返回false
+        if (!isProperties) return false;
       }
+
+      if (typeInfo.indexSignature) {
+        // 索引签名对象：{[key:string]:number} - 动态键名，固定类型
+        // 过滤掉具体属性对象中已匹配的键
+        const isIndexSignature = Object.entries(actual)
+          .filter(([key]) => !filterKeys.includes(key))
+          .every(([key, value]) => {
+            const keyMatches = matchesTypeRecursive(key, typeInfo.indexSignature.keyType);
+            const valueMatches = matchesTypeRecursive(
+              value,
+              typeInfo.indexSignature.valueType
+            );
+
+            return keyMatches && valueMatches;
+          });
+
+        // 如果索引签名对象不匹配，直接返回false
+        // 如果没有剩余的键直接跳过
+        if (!isIndexSignature) return false;
+      }
+
+      return true;
     },
 
     // 基础类型匹配 - 匹配原始类型 (string, number, boolean等)
@@ -533,4 +568,17 @@ export default overloader;
 //     age: 18,
 //   },
 // ]);
+
+// calc.add(
+//   `{
+//     a: 2,
+//     [key: string]: number,
+//   }`,
+//   (i) => console.log("匹配成功")
+// );
+// calc({
+//   a: 2,
+//   b: 3,
+// });
+
 // $done();
