@@ -6,89 +6,46 @@ const myTypeof = (arg) => {
   if (type === "function") return "Function";
   return type;
 };
+// 智能分割任意符号 - 处理字符串中的分隔符
+const splitAny = (SYMBOL) => (str) => {
+  let depth = 0;
+  let start = 0;
+  let canSplit = true; // 默认允许切割
+  let quoteChar;
+  let result = [];
+
+  for (let i = 0; i < str.length; i++) {
+    const char = str[i];
+
+    // 处理引号 - 核心逻辑
+    if (/["']/.test(char)) {
+      if (quoteChar && quoteChar === char) {
+        canSplit = true;
+        quoteChar = false;
+      } else {
+        quoteChar ||= char;
+        canSplit = false;
+      }
+    }
+
+    if (/[\[{(]/.test(char)) depth++;
+    else if (/[\]})]/.test(char)) depth--;
+    else if (canSplit && char === SYMBOL && depth === 0) {
+      result.push(str.slice(start, i).trim());
+      start = i + 1;
+    }
+  }
+
+  result.push(str.slice(start).trim());
+  return result;
+};
 
 // 智能分割联合类型（考虑所有括号嵌套）
-const splitUnionTypes = (str) => {
-  const result = [];
-  let current = "";
-  let depth = 0;
-  let inQuotes = false;
-  let quoteChar = "";
-
-  for (let i = 0; i < str.length; i++) {
-    const char = str[i];
-
-    if (!inQuotes && (char === '"' || char === "'")) {
-      inQuotes = true;
-      quoteChar = char;
-    } else if (inQuotes && char === quoteChar) {
-      inQuotes = false;
-      quoteChar = "";
-    }
-
-    if (!inQuotes) {
-      // 考虑所有类型的括号
-      if (char === "[" || char === "{" || char === "(") depth++;
-      else if (char === "]" || char === "}" || char === ")") depth--;
-      else if (char === "|" && depth === 0) {
-        result.push(current.trim());
-        current = "";
-        continue;
-      }
-    }
-
-    current += char;
-  }
-
-  if (current.trim()) {
-    result.push(current.trim());
-  }
-
-  return result;
-};
-
+const splitUnionTypes = splitAny("|");
 // 智能分割数组元素
-const splitArrayElements = (str) => {
-  const result = [];
-  let current = "";
-  let depth = 0;
-  let inQuotes = false;
-  let quoteChar = "";
-
-  for (let i = 0; i < str.length; i++) {
-    const char = str[i];
-
-    if (!inQuotes && (char === '"' || char === "'")) {
-      inQuotes = true;
-      quoteChar = char;
-    } else if (inQuotes && char === quoteChar) {
-      inQuotes = false;
-      quoteChar = "";
-    }
-
-    if (!inQuotes) {
-      if (char === "[" || char === "{" || char === "(") depth++;
-      else if (char === "]" || char === "}" || char === ")") depth--;
-      else if (char === "," && depth === 0) {
-        result.push(current.trim());
-        current = "";
-        continue;
-      }
-    }
-
-    current += char;
-  }
-
-  if (current.trim()) {
-    result.push(current.trim());
-  }
-
-  return result;
-};
-
+const splitArrayElements = splitAny(",");
 // 智能分割对象属性
 const splitObjectProperties = splitArrayElements;
-
 // 找到属性的冒号位置（考虑嵌套）- 改进版
 const findPropertyColon = (str) => {
   let depth = 0;
@@ -378,7 +335,6 @@ const matchesTypeRecursive = Object.assign(
     },
   }
 );
-
 // 主匹配函数
 const matchesType = (actual, typePattern) => {
   // 获取缓存或解析
@@ -442,9 +398,15 @@ export default overloader;
 //测试;
 // const calc = overloader();
 
-// calc.add("[ 1, string ]", (...args) => {
+// calc.add("{[key:string]: number[]|string|number}[]", (...args) => {
 //   console.log("匹配成功");
 //   console.log(JSON.stringify(args));
 // });
-// calc([1, "2"]);
+// calc([
+//   {
+//     name: "张三",
+//     hobbies: [1],
+//     age: 18,
+//   },
+// ]);
 // $done();
