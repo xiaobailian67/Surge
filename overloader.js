@@ -1,3 +1,16 @@
+/**
+ * @module overloader
+ * @description 一个强大的函数重载工具，支持基于类型签名的函数调用。
+ * 允许根据参数类型和数量定义多个函数实现，并在运行时自动选择匹配的实现。
+ * 支持复杂的类型匹配，包括基本类型、联合类型、数组、对象和字面量类型。
+ */
+
+/**
+ * 增强版类型检测函数
+ * @param {*} arg - 要检测类型的值
+ * @returns {string} 返回值的类型字符串
+ * @description 比原生 typeof 更精确，可以区分 null、undefined、array 等类型
+ */
 const myTypeof = (arg) => {
   if (arg === null) return "null";
   if (arg === undefined) return "undefined";
@@ -6,7 +19,12 @@ const myTypeof = (arg) => {
   if (type === "function") return "Function";
   return type;
 };
-// 智能分割任意符号 - 处理字符串中的分隔符
+/**
+ * 智能分割任意符号 - 处理字符串中的分隔符
+ * @param {string} SYMBOL - 分隔符
+ * @returns {Function} 返回一个接受字符串并按分隔符分割的函数
+ * @description 考虑引号、括号嵌套等复杂情况，智能分割字符串
+ */
 const splitAny = (SYMBOL) => (str) => {
   let depth = 0;
   let start = 0;
@@ -40,13 +58,36 @@ const splitAny = (SYMBOL) => (str) => {
   return result;
 };
 
-// 智能分割联合类型（考虑所有括号嵌套）
+/**
+ * 智能分割联合类型（考虑所有括号嵌套）
+ * @type {Function}
+ * @param {string} str - 包含联合类型的字符串
+ * @returns {string[]} 分割后的类型字符串数组
+ */
 const splitUnionTypes = splitAny("|");
-// 智能分割数组元素
+
+/**
+ * 智能分割数组元素
+ * @type {Function}
+ * @param {string} str - 包含数组元素的字符串
+ * @returns {string[]} 分割后的数组元素字符串
+ */
 const splitArrayElements = splitAny(",");
-// 智能分割对象属性
+
+/**
+ * 智能分割对象属性
+ * @type {Function}
+ * @param {string} str - 包含对象属性的字符串
+ * @returns {string[]} 分割后的对象属性字符串数组
+ */
 const splitObjectProperties = splitArrayElements;
-// 找到属性的冒号位置（考虑嵌套）- 改进版
+
+/**
+ * 找到属性的冒号位置（考虑嵌套）- 改进版
+ * @param {string} str - 属性字符串
+ * @returns {number} 冒号的位置索引，如果没找到则返回-1
+ * @description 考虑引号、括号嵌套等复杂情况，准确找到属性冒号位置
+ */
 const findPropertyColon = (str) => {
   let depth = 0;
   let inQuotes = false;
@@ -78,7 +119,12 @@ const findPropertyColon = (str) => {
   return -1;
 };
 
-// 递归解析复杂类型 - 数组版本优化
+/**
+ * 递归解析复杂类型 - 将类型字符串解析为结构化的类型信息对象
+ * @param {string} typeStr - 类型字符串
+ * @returns {Object} 解析后的类型信息对象
+ * @description 支持解析基本类型、联合类型、数组类型、对象类型和字面量类型
+ */
 const parseType = Object.assign(
   (typeStr) => {
     for (const fn of parseType.parses) {
@@ -249,7 +295,13 @@ const parseType = Object.assign(
   }
 );
 
-// 递归匹配-传参match传参类型规则
+/**
+ * 递归匹配 - 检查实际值是否符合类型规则
+ * @param {*} actual - 实际值
+ * @param {Object} typeInfo - 类型信息对象
+ * @returns {boolean} 是否匹配
+ * @description 根据类型信息递归检查值是否符合类型规则
+ */
 const matchesTypeRecursive = Object.assign(
   (actual, typeInfo) => matchesTypeRecursive[typeInfo.kind]?.(actual, typeInfo),
   {
@@ -335,14 +387,27 @@ const matchesTypeRecursive = Object.assign(
     },
   }
 );
-// 主匹配函数
+
+/**
+ * 主匹配函数 - 检查值是否匹配类型模式
+ * @param {*} actual - 实际值
+ * @param {string} typePattern - 类型模式字符串
+ * @returns {boolean} 是否匹配
+ * @description 将类型模式解析为类型信息，然后检查值是否匹配
+ */
 const matchesType = (actual, typePattern) => {
   // 获取缓存或解析
   const typeInfo = parseType.cached(typePattern);
   return matchesTypeRecursive(actual, typeInfo);
 };
 
-// 检查参数列表是否匹配类型模式列表
+/**
+ * 检查参数列表是否匹配类型模式列表
+ * @param {Array} actuals - 实际参数列表
+ * @param {string[]} typePatterns - 类型模式列表
+ * @returns {boolean} 是否匹配
+ * @description 检查参数数量和类型是否符合签名要求
+ */
 const matchesSignature = (actuals, typePatterns) => {
   // 提前验证必需参数数量
   const requiredCount = typePatterns.filter((pattern) => !pattern.includes("?")).length;
@@ -369,8 +434,19 @@ const matchesSignature = (actuals, typePatterns) => {
   return true;
 };
 
+/**
+ * 创建一个函数重载器
+ * @returns {Function} 返回一个支持重载的函数
+ * @description 创建一个可以根据参数类型和数量选择不同实现的函数
+ */
 const overloader = () => {
   return Object.assign(
+    /**
+     * 重载函数 - 根据参数匹配合适的实现
+     * @param {...*} args - 函数参数
+     * @returns {*} 匹配的函数实现的返回值
+     * @throws {Error} 如果没有找到匹配的实现则抛出错误
+     */
     function overloade(...args) {
       for (const [signature, fn] of overloade.signatures) {
         const typePatterns = signature.split("-");
@@ -382,10 +458,23 @@ const overloader = () => {
       throw new Error(`没有找到匹配签名 '${JSON.stringify(args)}' 的函数实现`);
     },
     {
+      /**
+       * 存储函数签名和对应的实现
+       * @type {Set}
+       */
       signatures: new Set(),
+
+      /**
+       * 添加一个函数实现
+       * @param {...string} args - 类型模式，最后一个参数是函数实现
+       * @returns {Function} 返回重载函数本身，支持链式调用
+       * @example
+       * // 添加一个接受字符串和数字的实现
+       * fn.add('string', 'number', (str, num) => str.repeat(num));
+       */
       add(...args) {
-        const fn = args.pop().bind(this);
-        const key = args.join("-");
+        const fn = args.pop();
+        const key = args.map((txt) => txt.replace(/[\r\n\s]/g, "")).join("-");
         this.signatures.add([key, fn]);
         return this;
       },
@@ -393,9 +482,41 @@ const overloader = () => {
   );
 };
 
+/**
+ * 导出重载器函数
+ * @exports overloader
+ */
 export default overloader;
 
-//测试;
+/**
+ * 使用示例：
+ *
+ * // 创建一个支持重载的计算函数
+ * const calc = overloader();
+ *
+ * // 添加处理两个数字的实现
+ * calc.add('number', 'number', (a, b) => a + b);
+ *
+ * // 添加处理字符串和数字的实现
+ * calc.add('string', 'number', (str, count) => str.repeat(count));
+ *
+ * // 添加处理数组的实现
+ * calc.add('array', (arr) => arr.reduce((sum, val) => sum + val, 0));
+ *
+ * // 添加处理复杂对象的实现
+ * calc.add("{[key:string]: number[]|string|number}[]", (objArray) => {
+ *   console.log("匹配成功");
+ *   return JSON.stringify(objArray);
+ * });
+ *
+ * // 使用重载函数
+ * calc(1, 2);                // 返回 3
+ * calc("hello", 3);         // 返回 "hellohellohello"
+ * calc([1, 2, 3, 4]);       // 返回 10
+ * calc([{ name: "张三", hobbies: [1], age: 18 }]); // 匹配复杂对象实现
+ */
+
+// 测试代码
 // const calc = overloader();
 
 // calc.add("{[key:string]: number[]|string|number}[]", (...args) => {
