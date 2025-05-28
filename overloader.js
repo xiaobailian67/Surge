@@ -313,10 +313,8 @@ const matchesTypeRecursive = Object.assign(
     // 数组类型匹配 - 处理同质数组(string[])和异质数组([string,number])
     array(actual, typeInfo) {
       if (myTypeof(actual) !== "array") return false;
+      if (!actual.length && !/array|any/.test(typeInfo.elementType.type)) return false;
       if (typeInfo.isHomogeneous) {
-        // 同质数组：所有元素必须匹配同一类型
-        actual.length || actual.push([]); // 确保数组不为空
-
         return actual.every((item) => matchesTypeRecursive(item, typeInfo.elementType));
       }
       // 异质数组：按位置匹配不同类型，长度必须一致
@@ -448,21 +446,26 @@ const overloader = () => {
      * @throws {Error} 如果没有找到匹配的实现则抛出错误
      */
     function overloade(...args) {
-      for (const [signature, fn] of overloade.signatures) {
+      const { any, ...signatures } = overloade.signatures;
+
+      for (const [signature, fn] of Object.entries(signatures)) {
         const typePatterns = signature.split("-");
-        if (signature === "any" || matchesSignature(args, typePatterns)) {
+        if (matchesSignature(args, typePatterns)) {
           return fn(...args);
         }
       }
+
+      // 将 any fallback 放到最后兜底
+      if (any) return any(...args);
 
       throw new Error(`没有找到匹配签名 '${JSON.stringify(args)}' 的函数实现`);
     },
     {
       /**
-       * 存储函数签名和对应的实现
-       * @type {Set}
+       * 签名表：类型签名字符串 → 函数
+       * 例如：{ "string-number": fn1, "any": fnFallback }jin
        */
-      signatures: new Set(),
+      signatures: Object.create(null),
 
       /**
        * 添加一个函数实现
@@ -475,7 +478,7 @@ const overloader = () => {
       add(...args) {
         const fn = args.pop();
         const key = args.map((txt) => txt.replace(/[\r\n\s]/g, "")).join("-");
-        this.signatures.add([key, fn]);
+        this.signatures[key] = fn;
         return this;
       },
     }
