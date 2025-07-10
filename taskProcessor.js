@@ -1,4 +1,4 @@
-class TaskProcessor {
+export default class TaskProcessor {
   #fulfilledData; // 已完成任务的索引集合
   #pendingData; // 待定任务集合
   #failedIndexes; //已失败任务的索引
