@@ -392,9 +392,9 @@ class HttpClient {
   }
 }
 
-export const $http = HttpClient.create();
+export const http = HttpClient.create();
 
-export const $prs = {
+export const prs = {
   get: globalThis.$prefs?.valueForKey ?? $persistentStore.read,
   getJson: (key) => JSON.parse($prs.get(key), null, 4),
   set: (key, value) =>
@@ -402,7 +402,7 @@ export const $prs = {
   setJson: (key, obj) => $prs.set(key, JSON.stringify(obj)),
 };
 
-export const $msg = (...a) => {
+export const msg = (...a) => {
   const { $open, $copy, $media, ...r } =
     typeof a.at(-1) === "object" && a.pop();
   const [t = "", s = "", b = ""] = a;
@@ -420,7 +420,7 @@ export const $msg = (...a) => {
   });
 };
 
-export const $log = Object.assign(
+export const log = Object.assign(
   (...args) =>
     args.forEach((i) =>
       console.log(
