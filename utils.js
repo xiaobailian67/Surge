@@ -420,26 +420,30 @@ export const msg = (...a) => {
   });
 };
 
-export const log = Object.assign(
-  (...args) =>
-    args.forEach((i) =>
-      console.log(
-        i?.stack
-          ? `${i.toString()}\n${i.stack}`
-          : typeof i === "object"
-          ? JSON.stringify(i, null, 4)
-          : String(i)
-      )
-    ),
-  {
-    time(id) {
-      $log.time[id] = Date.now();
-    },
-    timeEnd(id) {
-      $log(`${Date.now() - $log.time[id]}ms`);
-    },
-    show(...a) {
-      return (b) => b && $log(...a);
-    },
-  }
-);
+const format = (...args) => {
+  console.log(
+    args
+      .map(item => {
+        if (item?.stack) {
+          return `${item.toString()}\n${item.stack}`;
+        }
+        if (typeof item === "object") {
+          return JSON.stringify(item, null, 4);
+        }
+        return String(item);
+      })
+      .join("\n")
+  );
+};
+
+export const log = Object.assign(format, {
+  time(id) {
+    log.time[id] = Date.now();
+  },
+  timeEnd(id) {
+    log(`${id ? id + ": " : ""} ${Date.now() - log.time[id]}ms`);
+  },
+  show(...a) {
+    return b => b && log(...a);
+  },
+});
