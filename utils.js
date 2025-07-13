@@ -441,7 +441,7 @@ export const log = Object.assign(format, {
     log.time[id] = Date.now();
   },
   timeEnd(id) {
-    log(`${id ? id + ": " : ""} ${Date.now() - log.time[id]}ms`);
+    log(`${id ? id + ": " : ""}${Date.now() - log.time[id]}ms`);
   },
   show(...a) {
     return b => b && log(...a);
