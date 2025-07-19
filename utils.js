@@ -301,7 +301,7 @@ class HttpClient {
         return res;
       }),
 
-      // 自动处理二进制响应的钩子
+      // 自动处理二进制响应
       useBinaryResponse: this.useRes("default", (res, req) => {
         const { bodyBytes } = res;
         const { headers } = req;
@@ -399,11 +399,11 @@ const env = (type) => {
   if (env.result) return env.result;
 	
   const envMap = {
-    $loon: "loon",
-    $task: "qx",
-    $rocket: "shadowrocket",
-		"$environment.surge-build": "surge",
-		"$environment.stash-version": "stash",
+    $loon: "Loon",
+    $task: "Qx",
+    $rocket: "Qhadowrocket",
+    "$environment.surge-build": "Surge",
+    "$environment.stash-version": "Stash",
   };
 
   for (const [path, envName] of Object.entries(envMap)) {
@@ -420,6 +420,7 @@ export const prs = {
   set: (key, value) =>
     (globalThis.$prefs?.setValueForKey ?? $persistentStore.write)(value, key),
   setJson: (key, obj) => $prs.set(key, JSON.stringify(obj)),
+  remove: (key) => env("Surge") ? prs.set(key,null) : prs.remove()
 };
 
 export const msg = (...a) => {
