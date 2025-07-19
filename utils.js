@@ -420,7 +420,7 @@ export const prs = {
   set: (key, value) =>
     (globalThis.$prefs?.setValueForKey ?? $persistentStore.write)(value, key),
   setJson: (key, obj) => $prs.set(key, JSON.stringify(obj)),
-  remove: (key) => env("Surge") ? prs.set(key,null) : prs.remove()
+  remove: (key) => env("Surge") ? prs.set(key,null) : prs.remove(key)
 };
 
 export const msg = (...a) => {
