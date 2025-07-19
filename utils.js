@@ -416,10 +416,10 @@ const env = (type) => {
 
 export const prs = {
   get: globalThis.$prefs?.valueForKey ?? $persistentStore.read,
-  getJson: (key) => JSON.parse($prs.get(key), null, 4),
+  getJson: (key) => JSON.parse(prs.get(key), null, 4),
   set: (key, value) =>
     (globalThis.$prefs?.setValueForKey ?? $persistentStore.write)(value, key),
-  setJson: (key, obj) => $prs.set(key, JSON.stringify(obj)),
+  setJson: (key, obj) => prs.set(key, JSON.stringify(obj)),
   remove: (key) => env("Surge") ? prs.set(key,null) : prs.remove(key)
 };
 
