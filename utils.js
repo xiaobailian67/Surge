@@ -394,6 +394,26 @@ class HttpClient {
 
 export const http = HttpClient.create();
 
+const env = (type) => {
+  if (type) return type === env();
+  if (env.result) return env.result;
+	
+  const envMap = {
+    $loon: "loon",
+    $task: "qx",
+    $rocket: "shadowrocket",
+		"$environment.surge-build": "surge",
+		"$environment.stash-version": "stash",
+  };
+
+  for (const [path, envName] of Object.entries(envMap)) {
+    if (path.split(".").reduce((o, k) => o?.[k], globalThis))
+      return (env.result = envName);
+  }
+
+  throw new Error("环境不支持");
+};
+
 export const prs = {
   get: globalThis.$prefs?.valueForKey ?? $persistentStore.read,
   getJson: (key) => JSON.parse($prs.get(key), null, 4),
