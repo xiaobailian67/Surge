@@ -394,9 +394,9 @@ class HttpClient {
 
 export const $http = HttpClient.create();
 
-const $env = (type) => {
-  if (type) return type === env();
-  if ($env.result) return env.result;
+export const $env = (type) => {
+  if (type) return type === $env();
+  if ($env.result) return $env.result;
 	
   const envMap = {
     $loon: "Loon",
@@ -419,8 +419,8 @@ export const $cache = {
   getJson: (key) => JSON.parse($cache.get(key), null, 4),
   set: (key, value) =>
     (globalThis.$prefs?.setValueForKey ?? $persistentStore.write)(value, key),
-  setJson: (key, obj) => prs.set(key, JSON.stringify(obj)),
-  remove: (key) => env("Surge") ? $cache.set(key,null) : $cache.remove(key)
+  setJson: (key, obj) => $cache.set(key, JSON.stringify(obj)),
+  remove: (key) => $env("Surge") ? $cache.set(key,null) : (globalThis.$prefs ?? $persistentStore).remove(key)
 };
 
 export const $msg = (...a) => {
@@ -459,12 +459,12 @@ const format = (...args) => {
 
 export const $log = Object.assign(format, {
   time(id) {
-    log.time[id] = Date.now();
+    $log.time[id] = Date.now();
   },
   timeEnd(id) {
-    log(`${id ? id + ": " : ""}${Date.now() - log.time[id]}ms`);
+    $log(`${id ? id + ": " : ""}${Date.now() - $log.time[id]}ms`);
   },
   show(...a) {
-    return b => b && log(...a);
+    return b => b && $log(...a);
   },
 });
