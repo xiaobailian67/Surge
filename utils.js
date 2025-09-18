@@ -392,11 +392,11 @@ class HttpClient {
   }
 }
 
-export const http = HttpClient.create();
+export const $http = HttpClient.create();
 
-const env = (type) => {
+const $env = (type) => {
   if (type) return type === env();
-  if (env.result) return env.result;
+  if ($env.result) return env.result;
 	
   const envMap = {
     $loon: "Loon",
@@ -408,22 +408,22 @@ const env = (type) => {
 
   for (const [path, envName] of Object.entries(envMap)) {
     if (path.split(".").reduce((o, k) => o?.[k], globalThis))
-      return (env.result = envName);
+      return ($env.result = envName);
   }
 
   throw new Error("环境不支持");
 };
 
-export const prs = {
+export const $cache = {
   get: globalThis.$prefs?.valueForKey ?? $persistentStore.read,
-  getJson: (key) => JSON.parse(prs.get(key), null, 4),
+  getJson: (key) => JSON.parse($cache.get(key), null, 4),
   set: (key, value) =>
     (globalThis.$prefs?.setValueForKey ?? $persistentStore.write)(value, key),
   setJson: (key, obj) => prs.set(key, JSON.stringify(obj)),
-  remove: (key) => env("Surge") ? prs.set(key,null) : prs.remove(key)
+  remove: (key) => env("Surge") ? $cache.set(key,null) : $cache.remove(key)
 };
 
-export const msg = (...a) => {
+export const $msg = (...a) => {
   const { $open, $copy, $media, ...r } =
     typeof a.at(-1) === "object" && a.pop();
   const [t = "", s = "", b = ""] = a;
@@ -457,7 +457,7 @@ const format = (...args) => {
   );
 };
 
-export const log = Object.assign(format, {
+export const $log = Object.assign(format, {
   time(id) {
     log.time[id] = Date.now();
   },
