@@ -562,6 +562,7 @@ export default class SimpleExpress {
       res.end = function (...args) {
         const duration = Date.now() - startTime;
         const logData = formatLog(req, res, duration, format);
+        console.log(logData);
         return originalEnd.apply(this, args);
       };
 
