@@ -728,9 +728,11 @@ export default class SimpleExpress {
       for (let i = 0, j = 0; i < tasks.length; j++) {
         if (j > i) throw new Error("请使用next传递下一个中间件");
         const { path = "*", handler, method } = tasks[i];
-        if (method && method !== req.method) continue;
         const { match, params } = self.#matchPath(path, req.path);
-        if (!match) continue;
+        if (!match || (method && method !== req.method)) {
+          i++;
+          continue;
+        }
         params && (req.params = params);
         const next = input => {
           i++;
