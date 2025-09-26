@@ -1,9 +1,84 @@
-// 工具函数：将对象的所有键转换为小写
+/**
+ * 工具函数：将对象的所有键转换为小写
+ * @param {Object} obj - 输入对象
+ * @returns {Object} 转换后的对象，键均为小写
+ */
 const toLowerCaseKeys = obj => {
   return Object.entries(obj).reduce((acc, [key, value]) => {
     acc[key.toLowerCase()] = value;
     return acc;
   }, {});
+};
+
+/**
+ * 获取数据类型的工具函数
+ * @param {*} data - 要检测的数据
+ * @returns {string} 数据类型
+ */
+const getDataType = data => {
+  // 处理空值
+  if (data === null || data === undefined) {
+    return "null";
+  }
+
+  // ArrayBuffer
+  if (data instanceof ArrayBuffer) {
+    return "ArrayBuffer";
+  }
+
+  // Uint8Array
+  if (data instanceof Uint8Array) {
+    return "Uint8Array";
+  }
+
+  // 处理对象类型（排除null）
+  if (typeof data === "object" && data !== null) {
+    return "object";
+  }
+
+  // 处理字符串类型 - 智能判断是否为HTML
+  if (typeof data === "string") {
+    const isHtml = /<[^>]*>/.test(data);
+    return isHtml ? "html" : "string";
+  }
+
+  // 处理数字类型
+  if (typeof data === "number") {
+    return "number";
+  }
+
+  // 其他类型
+  return "other";
+};
+
+/**
+ * 格式化日志输出的工具函数
+ * @param {Request} req - 请求对象
+ * @param {Response} res - 响应对象
+ * @param {number} duration - 请求处理时间（毫秒）
+ * @param {string} format - 日志格式 ('combined', 'common', 'short', 'tiny')
+ * @returns {string} 格式化的日志字符串
+ */
+const formatLog = (req, res, duration, format) => {
+  const timestamp = new Date().toISOString();
+  const method = req.method.toUpperCase();
+  const url = req.url;
+  const status = res.statusCode || 200;
+  const userAgent = req.get("user-agent") || "-";
+  const referer = req.get("referer") || "-";
+
+  switch (format) {
+    case "combined":
+      return `${timestamp} "${method} ${url}" ${status} ${duration}ms "${referer}" "${userAgent}"`;
+    case "common":
+      return `${timestamp} "${method} ${url}" ${status} ${duration}ms`;
+    case "short":
+      return `${method} ${url} ${status} ${duration}ms`;
+    case "tiny":
+      return `${method} ${url} ${status}`;
+    default:
+      return `${timestamp} ${method} ${url} ${status} ${duration}ms`;
+  }
 };
 
 // 1. Request 类 - 处理请求相关功能
@@ -320,7 +395,7 @@ class Response {
    */
   send(data) {
     // 获取数据类型用于switch判断
-    switch (this.#getDataType(data)) {
+    switch (getDataType(data)) {
       case "null":
         // 处理空值情况
         this.end();
@@ -357,48 +432,6 @@ class Response {
         this.set("Content-Type", "text/plain; charset=utf-8").end(String(data));
         break;
     }
-  }
-
-  /**
-   * 获取数据类型
-   * @param {*} data - 要检测的数据
-   * @returns {string} 数据类型
-   * @private
-   */
-  #getDataType(data) {
-    // 处理空值
-    if (data === null || data === undefined) {
-      return "null";
-    }
-
-    // ArrayBuffer
-    if (data instanceof ArrayBuffer) {
-      return "ArrayBuffer";
-    }
-
-    // Uint8Array
-    if (data instanceof Uint8Array) {
-      return "Uint8Array";
-    }
-
-    // 处理对象类型（排除null）
-    if (typeof data === "object" && data !== null) {
-      return "object";
-    }
-
-    // 处理字符串类型 - 智能判断是否为HTML
-    if (typeof data === "string") {
-      const isHtml = /<[^>]*>/.test(data);
-      return isHtml ? "html" : "string";
-    }
-
-    // 处理数字类型
-    if (typeof data === "number") {
-      return "number";
-    }
-
-    // 其他类型
-    return "other";
   }
 }
 
@@ -530,43 +563,12 @@ export default class SimpleExpress {
       const originalEnd = res.end;
       res.end = function (...args) {
         const duration = Date.now() - startTime;
-        const logData = SimpleExpress.#formatLog(req, res, duration, format);
+        const logData = formatLog(req, res, duration, format);
         return originalEnd.apply(this, args);
       };
 
       next();
     };
-  }
-
-  /**
-   * 格式化日志输出
-   * @param {Request} req - 请求对象
-   * @param {Response} res - 响应对象
-   * @param {number} duration - 请求处理时间（毫秒）
-   * @param {string} format - 日志格式 ('combined', 'common', 'short', 'tiny')
-   * @returns {string} 格式化的日志字符串
-   * @private
-   */
-  static #formatLog(req, res, duration, format) {
-    const timestamp = new Date().toISOString();
-    const method = req.method.toUpperCase();
-    const url = req.url;
-    const status = res.statusCode || 200;
-    const userAgent = req.get("user-agent") || "-";
-    const referer = req.get("referer") || "-";
-
-    switch (format) {
-      case "combined":
-        return `${timestamp} "${method} ${url}" ${status} ${duration}ms "${referer}" "${userAgent}"`;
-      case "common":
-        return `${timestamp} "${method} ${url}" ${status} ${duration}ms`;
-      case "short":
-        return `${method} ${url} ${status} ${duration}ms`;
-      case "tiny":
-        return `${method} ${url} ${status}`;
-      default:
-        return `${timestamp} ${method} ${url} ${status} ${duration}ms`;
-    }
   }
 
   /**
@@ -763,4 +765,3 @@ export default class SimpleExpress {
     }
   }
 }
-
