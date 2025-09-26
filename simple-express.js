@@ -745,7 +745,7 @@ export default class SimpleExpress {
             }
           }
 
-          // 路由匹配成功，执行下一个中间件
+          // 关键字匹配成功，跳过下一个中间件
           if (input === "route" && method) i++, j++;
         };
 
