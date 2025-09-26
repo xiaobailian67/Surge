@@ -1,3 +1,11 @@
+// 工具函数：将对象的所有键转换为小写
+const toLowerCaseKeys = obj => {
+  return Object.entries(obj).reduce((acc, [key, value]) => {
+    acc[key.toLowerCase()] = value;
+    return acc;
+  }, {});
+};
+
 // 1. Request 类 - 处理请求相关功能
 class Request {
   /**
@@ -20,11 +28,10 @@ class Request {
    * @param {Object} originalReq - 原始请求对象
    */
   constructor(originalReq) {
+    const u = new URL(originalReq.url);
     Object.assign(this, originalReq, {
       method: originalReq.method.toLowerCase(),
-    });
-    const u = new URL(this.url);
-    Object.assign(this, {
+      headers: toLowerCaseKeys(originalReq.headers),
       href: u.href,
       origin: u.origin,
       protocol: u.protocol,
@@ -35,11 +42,10 @@ class Request {
       hash: u.hash,
       searchParams: u.searchParams,
       password: u.password,
+      path: u.pathname,
+      params: {},
+      query: this.#parseQuery(u.search),
     });
-    this.path = this.pathname;
-    this.params = {};
-    // 解析查询参数
-    this.query = this.#parseQuery(u.search);
   }
 
   /**
@@ -175,15 +181,42 @@ class Request {
 
 // 2. Response 类 - 处理响应相关功能
 class Response {
+  // HTTP状态码映射表
+  static STATUS_CODES = {
+    200: "OK",
+    201: "Created",
+    204: "No Content",
+    301: "Moved Permanently",
+    302: "Found",
+    304: "Not Modified",
+    400: "Bad Request",
+    401: "Unauthorized",
+    403: "Forbidden",
+    404: "Not Found",
+    405: "Method Not Allowed",
+    500: "Internal Server Error",
+    502: "Bad Gateway",
+    503: "Service Unavailable",
+  };
+
   responseSent = false;
+  #originalRes;
 
   /**
    * 创建Response实例
-   * @param {Object} originalRes - 原始响应对象
+   * @param {Object} #originalRes - 原始响应对象
    */
   constructor(originalRes = {}) {
     const { status = 200, headers = {}, body = "" } = originalRes;
-    this.originalRes = { status, headers, body };
+    this.#originalRes = { status, headers, body };
+  }
+
+  /**
+   * 获取响应状态码
+   * @returns {number} HTTP状态码
+   */
+  get statusCode() {
+    return this.#originalRes.status;
   }
 
   /**
@@ -192,8 +225,29 @@ class Response {
    * @returns {Response} 支持链式调用
    */
   status(code) {
-    this.originalRes.status = code;
+    this.#originalRes.status = code;
     return this; // 支持链式调用
+  }
+
+  /**
+   * 发送状态码响应
+   * @param {number} statusCode - HTTP状态码
+   * @returns {Response} 支持链式调用
+   */
+  sendStatus(statusCode) {
+    const statusText = Response.STATUS_CODES[statusCode] || "Unknown";
+    this.status(statusCode);
+    this.send(statusText);
+    return this;
+  }
+
+  /**
+   * 获取状态文本
+   * @param {number} code - HTTP状态码
+   * @returns {string} 状态文本
+   */
+  getStatusText(code) {
+    return Response.STATUS_CODES[code] || "Unknown";
   }
 
   /**
@@ -202,7 +256,7 @@ class Response {
    * @param {string} value - 响应头值
    */
   setHeader(name, value) {
-    this.originalRes.headers[name.toLowerCase()] = value;
+    this.#originalRes.headers[name.toLowerCase()] = value;
   }
 
   /**
@@ -211,7 +265,7 @@ class Response {
    * @returns {string} 响应头值
    */
   getHeader(name) {
-    return this.originalRes.headers[name.toLowerCase()];
+    return this.#originalRes.headers[name.toLowerCase()];
   }
 
   /**
@@ -241,14 +295,14 @@ class Response {
   }
 
   /**
-   * 结束响应（核心方法，包含反射机制）
+   * 结束响应（核心方法，控制流反射）
    * @param {*} data - 响应数据
    * @throws {ResponseEndedError} 响应结束错误
    */
   end(data) {
     this.responseSent = true;
-    this.originalRes.body = data;
-    throw new ResponseEndedError(this.originalRes);
+    this.#originalRes.body = data;
+    throw new ResponseEndedError({ ...this.#originalRes });
   }
 
   /**
@@ -392,6 +446,127 @@ export default class SimpleExpress {
     this.#originalReq = request;
     this.#originalRes = response;
     this.#initializeHttpMethods();
+  }
+
+  // ==================== 静态中间件方法 ====================
+
+  /**
+   * JSON请求体解析中间件
+   * @returns {Function} 中间件函数
+   */
+  static json() {
+    return (req, res, next) => {
+      try {
+        // 检查Content-Type
+        const contentType = req.contentType();
+        if (!contentType || !contentType.includes("application/json")) {
+          return next();
+        }
+
+        const jsonData = req.json();
+        if (typeof jsonData !== "object") {
+          return next(new Error("JSON格式错误：必须是对象或数组"));
+        }
+
+        // 设置解析后的数据到req.body
+        req.body = jsonData;
+        next();
+      } catch (error) {
+        next(new Error(`JSON解析失败: ${error.message}`));
+      }
+    };
+  }
+
+  /**
+   * URL编码数据解析中间件
+   * @returns {Function} 中间件函数
+   */
+  static urlencoded() {
+    return (req, res, next) => {
+      try {
+        // 检查Content-Type
+        const contentType = req.contentType();
+        if (
+          !contentType ||
+          !contentType.includes("application/x-www-form-urlencoded")
+        ) {
+          return next();
+        }
+
+        // 解析表单数据
+        const formData = req.formData();
+
+        // 设置解析后的数据到req.body
+        req.body = formData;
+        next();
+      } catch (error) {
+        next(new Error(`表单数据解析失败: ${error.message}`));
+      }
+    };
+  }
+
+  /**
+   * 请求日志记录中间件
+   * @param {Object} options - 日志配置选项
+   * @param {string} options.format - 日志格式 ('combined', 'common', 'short', 'tiny')
+   * @param {Function} options.skip - 跳过日志的条件函数
+   * @returns {Function} 中间件函数
+   */
+  static logger(options = {}) {
+    const { format = "combined", skip } = options;
+
+    return (req, res, next) => {
+      // 如果有跳过条件且满足，则跳过日志
+      if (skip && skip(req, res)) {
+        return next();
+      }
+
+      const startTime = Date.now();
+
+      // 记录请求开始时间
+      req.startTime = startTime;
+
+      // 监听响应结束事件（模拟）
+      const originalEnd = res.end;
+      res.end = function (...args) {
+        const duration = Date.now() - startTime;
+        const logData = SimpleExpress.#formatLog(req, res, duration, format);
+        return originalEnd.apply(this, args);
+      };
+
+      next();
+    };
+  }
+
+  /**
+   * 格式化日志输出
+   * @param {Request} req - 请求对象
+   * @param {Response} res - 响应对象
+   * @param {number} duration - 请求处理时间（毫秒）
+   * @param {string} format - 日志格式 ('combined', 'common', 'short', 'tiny')
+   * @returns {string} 格式化的日志字符串
+   * @private
+   */
+  static #formatLog(req, res, duration, format) {
+    const timestamp = new Date().toISOString();
+    const method = req.method.toUpperCase();
+    const url = req.url;
+    const status = res.statusCode || 200;
+    const userAgent = req.get("user-agent") || "-";
+    const referer = req.get("referer") || "-";
+
+    switch (format) {
+      case "combined":
+        return `${timestamp} "${method} ${url}" ${status} ${duration}ms "${referer}" "${userAgent}"`;
+      case "common":
+        return `${timestamp} "${method} ${url}" ${status} ${duration}ms`;
+      case "short":
+        return `${method} ${url} ${status} ${duration}ms`;
+      case "tiny":
+        return `${method} ${url} ${status}`;
+      default:
+        return `${timestamp} ${method} ${url} ${status} ${duration}ms`;
+    }
   }
 
   /**
@@ -560,8 +735,7 @@ export default class SimpleExpress {
         const next = input => {
           i++;
           if (input && input !== "route") {
-            const inputError =
-              input instanceof Error ? input : new MiddlewareError(input);
+            const inputError = new MiddlewareError(input?.message ?? input);
             if (error) {
               // 错误中间件，继续传递错误
               error = inputError;
@@ -589,3 +763,4 @@ export default class SimpleExpress {
     }
   }
 }
+
