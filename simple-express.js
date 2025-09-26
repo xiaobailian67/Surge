@@ -731,7 +731,7 @@ export default class SimpleExpress {
         const { path = "*", handler, method } = tasks[i];
         const { match, params } = self.#matchPath(path, req.path);
         if (!match || (method && method !== req.method)) {
-          i++;
+          i++; 
           continue;
         }
         params && (req.params = params);
