@@ -274,7 +274,6 @@ class Response {
     503: "Service Unavailable",
   };
 
-  responseSent = false;
   #originalRes;
 
   /**
@@ -375,7 +374,6 @@ class Response {
    * @throws {ResponseEndedError} 响应结束错误
    */
   end(data) {
-    this.responseSent = true;
     this.#originalRes.body = data;
     throw new ResponseEndedError({ ...this.#originalRes });
   }
