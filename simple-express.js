@@ -726,17 +726,17 @@ export default class SimpleExpress {
   async #createNext(tasks, req, res, error) {
     if (!tasks.length) return;
     const handle = function* (self) {
-      for (let i = 0, j = 0; i < tasks.length; i++) {
+      for (let i = 0, j = 0; i < tasks.length; j++) {
         if (j > i) throw new Error("请使用next传递下一个中间件");
         const { path = "*", handler, method } = tasks[i];
         const { match, params } = self.#matchPath(path, req.path);
         if (!match || (method && method !== req.method)) {
-          //i++;
+          i++;
           continue;
         }
         params && (req.params = params);
         const next = input => {
-          //i++;
+          i++;
           if (input && input !== "route") {
             const inputError = new MiddlewareError(input?.message ?? input);
             if (error) {
