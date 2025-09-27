@@ -81,23 +81,23 @@ const formatLog = (req, res, duration, format) => {
   }
 };
 
+/**
+ * 解析查询参数的私有方法
+ * @param {string} search - URL的search部分
+ * @returns {Object} 解析后的查询参数对象
+ */
+const parseQuery = search => {
+  if (!search || search === "?") return {};
+  const params = new URLSearchParams(search);
+  const result = {};
+  for (const [key, value] of params) {
+    result[key] = value;
+  }
+  return result;
+};
+
 // 1. Request 类 - 处理请求相关功能
 class Request {
-  /**
-   * 解析查询参数的私有方法
-   * @param {string} search - URL的search部分
-   * @returns {Object} 解析后的查询参数对象
-   */
-  #parseQuery(search) {
-    if (!search || search === "?") return {};
-    const params = new URLSearchParams(search);
-    const result = {};
-    for (const [key, value] of params) {
-      result[key] = value;
-    }
-    return result;
-  }
-
   /**
    * 创建Request实例
    * @param {Object} originalReq - 原始请求对象
@@ -119,7 +119,7 @@ class Request {
       password: u.password,
       path: u.pathname,
       params: {},
-      query: this.#parseQuery(u.search),
+      query: parseQuery(u.search),
     });
   }
 
@@ -334,15 +334,6 @@ class Response {
   }
 
   /**
-   * 获取响应头
-   * @param {string} name - 响应头名称
-   * @returns {string} 响应头值
-   */
-  getHeader(name) {
-    return this.#originalRes.headers[name.toLowerCase()];
-  }
-
-  /**
    * 设置响应头（支持对象和键值对）
    * @param {string|Object} field - 响应头字段名或对象
    * @param {string} value - 响应头值
@@ -357,6 +348,15 @@ class Response {
       this.setHeader(field, value);
     }
     return this;
+  }
+
+  /**
+   * 获取响应头
+   * @param {string} name - 响应头名称
+   * @returns {string} 响应头值
+   */
+  getHeader(name) {
+    return this.#originalRes.headers[name.toLowerCase()];
   }
 
   /**
@@ -723,7 +723,7 @@ export default class SimpleExpress {
    * @returns {Promise<void>}
    * @private
    */
-   async #createNext(tasks, req, res, error) {
+  async #createNext(tasks, req, res, error) {
     for (let i = 0, j = 0; i < tasks.length; j++) {
       if (j > i) throw new Error("请使用next传递下一个中间件");
       const { path = "*", handler, method } = tasks[i];
