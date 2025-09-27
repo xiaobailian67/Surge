@@ -723,46 +723,36 @@ export default class SimpleExpress {
    * @returns {Promise<void>}
    * @private
    */
-  async #createNext(tasks, req, res, error) {
-    if (!tasks.length) return;
-    const handle = function* (self) {
-      for (let i = 0, j = 0; i < tasks.length; j++) {
-        if (j > i) throw new Error("请使用next传递下一个中间件");
-        const { path = "*", handler, method } = tasks[i];
-        const { match, params } = self.#matchPath(path, req.path);
-        if (!match || (method && method !== req.method)) {
-          i++;
-          continue;
-        }
-        params && (req.params = params);
-        const next = input => {
-          i++;
-          if (input && input !== "route") {
-            const inputError = new MiddlewareError(input?.message ?? input);
-            if (error) {
-              // 错误中间件，继续传递错误
-              error = inputError;
-            } else {
-              //普通中间件跳转到错误中间件
-              throw inputError;
-            }
-          }
-
-          // 关键字匹配成功，跳过下一个中间件
-          if (input === "route" && method) i++, j++;
-        };
-
-        error
-          ? yield handler(error, req, res, next)
-          : yield handler(req, res, next);
+   async #createNext(tasks, req, res, error) {
+    for (let i = 0, j = 0; i < tasks.length; j++) {
+      if (j > i) throw new Error("请使用next传递下一个中间件");
+      const { path = "*", handler, method } = tasks[i];
+      const { match, params } = this.#matchPath(path, req.path);
+      if (!match || (method && method !== req.method)) {
+        i++;
+        continue;
       }
-    };
+      params && (req.params = params);
+      const next = input => {
+        i++;
+        if (input && input !== "route") {
+          const inputError = new MiddlewareError(input?.message ?? input);
+          if (error) {
+            // 错误中间件，继续传递错误
+            error = inputError;
+          } else {
+            //普通中间件跳转到错误中间件
+            throw inputError;
+          }
+        }
 
-    const generator = handle(this);
-    let result = generator.next();
-    while (!result.done) {
-      await result.value;
-      result = generator.next();
+        // 关键字匹配成功，跳过下一个中间件
+        if (input === "route" && method) i++, j++;
+      };
+
+      error
+        ? await handler(error, req, res, next)
+        : await handler(req, res, next);
     }
   }
 }
