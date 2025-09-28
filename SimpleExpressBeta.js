@@ -529,7 +529,7 @@ class MiddlewareError extends Error {
  * 极简Express实现 - 只包含中间件和路由
  * 专注核心功能，保持最大简洁性
  */
-class SimpleExpress {
+export default class SimpleExpress {
   #originalReq; // 原始请求对象
   #originalRes; // 原始响应对象
   #middlewares = []; // 中间件列表
