@@ -96,6 +96,74 @@ const parseQuery = search => {
   return result;
 };
 
+/**
+ * 路径匹配（支持参数) 工具函数
+ * @param {string} routePath - 路由路径
+ * @param {string} requestPath - 请求路径
+ * @returns {Object} 匹配结果对象
+ * @private
+ */
+const matchPath = (routePath, requestPath) => {
+  if (routePath === "*") return { match: true };
+
+  const keys = [];
+  let starIdx = 0;
+
+  const pattern = routePath
+    // 未命名 * → params["0"], "1", ...
+    .replace(/\/\*/g, () => {
+      const key = String(starIdx++);
+      keys.push(key);
+      return "/(.*)";
+    })
+    // :name(regex)
+    .replace(/:(\w+)\(([^)]+)\)/g, (_, key, pat) => {
+      keys.push(key);
+      return `(${pat})`;
+    })
+    // :name+  一或多段
+    .replace(/:(\w+)\+/g, (_, key) => {
+      keys.push(key);
+      return "([^/]+(?:\\/[^/]+)*)";
+    })
+    // :name*  零或多段
+    .replace(/:(\w+)\*/g, (_, key) => {
+      keys.push(key);
+      return "(.*)?";
+    })
+    // :name? 可选单段（开头）
+    .replace(/^:(\w+)\?/, (_, key) => {
+      keys.push(key);
+      return "([^/]+)?";
+    })
+    // :name? 可选单段（带斜杠）
+    .replace(/\/:(\w+)\?/, (_, key) => {
+      keys.push(key);
+      return "(?:/([^/]+))?";
+    })
+    // 普通 :name
+    .replace(/:(\w+)/g, (_, key) => {
+      keys.push(key);
+      return "([^/]+)";
+    });
+
+  const regex = new RegExp(`^${pattern}$`);
+  const match = regex.exec(requestPath);
+
+  if (!match) return { match: false };
+  if (keys.length === 0) return { match: true };
+
+  const params = {};
+  keys.forEach((k, i) => {
+    const val = match[i + 1];
+    if (val) params[k] = val;
+  });
+
+  return Object.keys(params).length > 0
+    ? { match: true, params }
+    : { match: true };
+};
+
 // 1. Request 类 - 处理请求相关功能
 class Request {
   /**
@@ -461,7 +529,7 @@ class MiddlewareError extends Error {
  * 极简Express实现 - 只包含中间件和路由
  * 专注核心功能，保持最大简洁性
  */
-export default class SimpleExpress {
+class SimpleExpress {
   #originalReq; // 原始请求对象
   #originalRes; // 原始响应对象
   #middlewares = []; // 中间件列表
@@ -625,33 +693,6 @@ export default class SimpleExpress {
   }
 
   /**
-   * 路径匹配（支持参数）
-   * @param {string} routePath - 路由路径
-   * @param {string} requestPath - 请求路径
-   * @returns {Object} 匹配结果对象
-   * @private
-   */
-  #matchPath(routePath, requestPath) {
-    if (routePath === "*" || routePath === requestPath) return { match: true };
-
-    const routeParts = routePath.split("/");
-    const requestParts = requestPath.split("/");
-
-    if (routeParts.length !== requestParts.length) return { match: false };
-
-    const params = {};
-    for (let i = 0; i < routeParts.length; i++) {
-      if (routeParts[i].startsWith(":")) {
-        params[routeParts[i].slice(1)] = requestParts[i];
-      } else if (routeParts[i] !== requestParts[i]) {
-        return { match: false };
-      }
-    }
-
-    return { match: true, params };
-  }
-
-  /**
    * 启动方法 - 公共API入口
    * @returns {Promise<*>} 处理结果
    */
@@ -727,7 +768,7 @@ export default class SimpleExpress {
     for (let i = 0, j = 0; i < tasks.length; j++) {
       if (j > i) throw new Error("请使用next传递下一个中间件");
       const { path = "*", handler, method } = tasks[i];
-      const { match, params } = this.#matchPath(path, req.path);
+      const { match, params } = matchPath(path, req.path);
       if (!match || (method && method !== req.method)) {
         i++;
         continue;
@@ -756,3 +797,29 @@ export default class SimpleExpress {
     }
   }
 }
+
+//测试代码;
+// $request.url = "https://api.exchangerate-api.com/v4/latest/CNY";
+
+// const app = new SimpleExpress($request);
+
+// app.use(SimpleExpress.json());
+
+// app.use((req, res, next) => {
+//   console.log(req.method, req.path);
+//   next();
+// });
+
+// app.post("/", (req, res, next) => {
+//   // console.log(typeof req.body);
+//   res.send("我很屌呀");
+// });
+
+// app.post("/v4/latest/CNY", (req, res, next) => {
+//   // console.log(typeof req.body);
+//   res.send("我很屌");
+// });
+
+// app.run().then(result => {
+//   $done(result);
+// });
