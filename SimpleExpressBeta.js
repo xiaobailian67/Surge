@@ -97,7 +97,7 @@ const parseQuery = search => {
 };
 
 /**
- * 路径匹配（支持参数) 工具函数
+ * 路径匹配（支持参数）
  * @param {string} routePath - 路由路径
  * @param {string} requestPath - 请求路径
  * @returns {Object} 匹配结果对象
@@ -433,7 +433,9 @@ class Response {
    * @returns {string} 响应头值
    */
   get(field) {
-    return this.getHeader(field);
+    return field 
+    ? this.getHeader(field)
+    : { ...this.#originalRes.headers }
   }
 
   /**
