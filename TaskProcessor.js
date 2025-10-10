@@ -2,7 +2,6 @@ export default class TaskProcessor {
   #fulfilledData; // 已完成任务的索引集合
   #pendingData; // 待定任务集合
   #failedIndexes; //已失败任务的索引
-  #promises; // 所有任务的执行结果
   #shouldStopAll; //停止所有任务
   #stop; //停止单个任务
 
@@ -14,7 +13,6 @@ export default class TaskProcessor {
     this.#fulfilledData = new Map();
     this.#pendingData = new Map();
     this.#failedIndexes = new Set();
-    this.#promises = [];
     this.#shouldStopAll = false;
   }
 
@@ -105,7 +103,6 @@ export default class TaskProcessor {
 
       const task = tasks[i];
       const p = this.#isPromise(task) ? task : Promise.resolve().then(task);
-      this.#promises[i] = p;
 
       const e = p
         .then((result) => {
@@ -118,8 +115,7 @@ export default class TaskProcessor {
           if (this.#shouldStopAll) {
             resolve(true);
           } else if (
-            this.#fulfilledData.size + this.#pendingData.size ===
-            this.#promises.length
+            this.#fulfilledData.size + this.#pendingData.size >= tasks.length
           ) {
             resolve(
               this.#fulfilledData.size + this.#failedIndexes.size >=
@@ -167,4 +163,5 @@ export default class TaskProcessor {
 
     return this.#resolvePromises();
   }
+}
 }
