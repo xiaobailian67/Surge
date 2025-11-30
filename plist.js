@@ -105,8 +105,4 @@ function buildArray(arr) {
 // --------------------
 // 导出小写对象 plist
 // --------------------
-
-const plist = { parse, build };
-
-export default plist;
 export { parse, build };
