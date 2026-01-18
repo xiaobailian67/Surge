@@ -468,3 +468,15 @@ export const $log = Object.assign(format, {
     return b => b && $log(...a);
   },
 });
+
+const send = {
+ post(...a){
+	return this._send("POST", ...a);
+},
+ get(...a){
+	return this._send("GET", ...a);
+},
+ _send: (m,p,b) => new Promise((ok) => $httpAPI(m,p,b,ok))
+}
+
+export const $api = Object.assign((...a) => send[a.length > 1 ? "post" : "get"](...a), send);
