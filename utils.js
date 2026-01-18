@@ -416,7 +416,13 @@ export const $env = (type) => {
 
 export const $cache = {
   get: globalThis.$prefs?.valueForKey ?? $persistentStore.read,
-  getJson: (key) => JSON.parse($cache.get(key), null, 4),
+  getJson: (key, alt) => {
+	 try{
+		 return JSON.parse($cache.get(key))
+	 } cstch {
+		 return alt
+	 }
+  },
   set: (key, value) =>
     (globalThis.$prefs?.setValueForKey ?? $persistentStore.write)(value, key),
   setJson: (key, obj) => $cache.set(key, JSON.stringify(obj)),
