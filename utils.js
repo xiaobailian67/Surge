@@ -401,7 +401,7 @@ export const $env = (type) => {
   const envMap = {
     $loon: "Loon",
     $task: "Qx",
-    $rocket: "Qhadowrocket",
+    $rocket: "Shadowrocket",
     "$environment.surge-build": "Surge",
     "$environment.stash-version": "Stash",
   };
@@ -412,6 +412,16 @@ export const $env = (type) => {
   }
 
   throw new Error("环境不支持");
+};
+
+const _done = (globalThis.$done ??= () => {});
+$done = (obj) => {
+	if ($env("Qx") && obj.response) {
+		const { response } = obj;
+		obj = { ...response, status: `HTTP/1.1 ${response.status ?? 200} OK` };
+	}
+
+	_done(obj);
 };
 
 export const $cache = {
