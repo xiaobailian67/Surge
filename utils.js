@@ -496,3 +496,14 @@ const send = {
 }
 
 export const $api = Object.assign((...a) => send[a.length > 1 ? "post" : "get"](...a), send);
+
+export const $arg = (alt = {}) => {
+  if (!globalThis.$argument) return alt;
+  if (typeof $argument === "object") return $argument;
+
+  const result = Object.fromEntries(new URLSearchParams($argument));
+  const values = Object.values(result);
+  return values.length === 1 && values[0] === "" ? $argument : result
+}
+
+
