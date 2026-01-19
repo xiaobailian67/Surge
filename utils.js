@@ -419,7 +419,7 @@ export const $cache = {
   getJson: (key, alt) => {
 	 try{
 		 return JSON.parse($cache.get(key))
-	 } cstch {
+	 } catch {
 		 return alt
 	 }
   },
