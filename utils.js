@@ -415,21 +415,26 @@ export const $env = (type) => {
 };
 
 
-export const $Done  = (obj) => {
+export const $Done = (obj) => {
   if (typeof obj !== "object") return $done();
 
+  const payload = obj.response ?? obj;
+  if (
+    typeof payload.body === "object" &&
+    !(payload.body instanceof Uint8Array)
+  ) {
+    payload.body = JSON.stringify(payload.body);
+  }
+
   if ($env("Qx")) {
-    const { status = 200, headers, body } = obj.response ?? obj;
+    const { status = 200, headers, body } = payload;
     obj = { statusCode: `HTTP/1.1 ${status} OK`, headers };
+
     if (body instanceof Uint8Array) {
       obj.bodyBytes = body;
     } else {
       obj.body = body;
     }
-  }
-
-  if (typeof obj.body === "object" && !(obj.body instanceof Uint8Array)) {
-    obj.body = JSON.stringify(obj.body);
   }
 
   $done(obj);
