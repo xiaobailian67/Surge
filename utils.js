@@ -414,8 +414,8 @@ export const $env = (type) => {
   throw new Error("环境不支持");
 };
 
-const _done = (globalThis.$done ??= () => {});
-$done = obj => {
+
+export const $Done  = (obj) => {
   if (typeof obj !== "object") return _done();
 
   if ($env("Qx")) {
@@ -432,7 +432,7 @@ $done = obj => {
     obj.body = JSON.stringify(obj.body);
   }
 
-  _done(obj);
+  $done(obj);
 };
 
 export const $cache = {
