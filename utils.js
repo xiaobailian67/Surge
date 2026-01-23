@@ -416,7 +416,7 @@ export const $env = (type) => {
 
 
 export const $Done = (obj) => {
-  if (typeof obj !== "object") return $done();
+  if (typeof obj !== "object") return $done(obj);
 
   const payload = obj.response ?? obj;
   if (
