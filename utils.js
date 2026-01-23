@@ -415,7 +415,7 @@ export const $env = (type) => {
 };
 
 
-export const $Done = (obj) => {
+export const $Done = obj => {
   if (typeof obj !== "object") return $done(obj);
 
   const payload = obj.response ?? obj;
@@ -427,7 +427,7 @@ export const $Done = (obj) => {
   }
 
   if ($env("Qx")) {
-    const { status = 200, headers, body } = payload;
+    const { statusCode = 200, status = statusCode, headers, body } = payload;
     obj = { statusCode: `HTTP/1.1 ${status} OK`, headers };
 
     if (body instanceof Uint8Array) {
