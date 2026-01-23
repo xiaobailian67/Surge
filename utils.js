@@ -416,7 +416,7 @@ export const $env = (type) => {
 
 
 export const $Done  = (obj) => {
-  if (typeof obj !== "object") return _done();
+  if (typeof obj !== "object") return $done();
 
   if ($env("Qx")) {
     const { status = 200, headers, body } = obj.response ?? obj;
