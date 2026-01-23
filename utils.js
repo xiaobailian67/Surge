@@ -415,13 +415,24 @@ export const $env = (type) => {
 };
 
 const _done = (globalThis.$done ??= () => {});
-$done = (obj) => {
-	if ($env("Qx") && obj.response) {
-		const { response } = obj;
-		obj = { ...response, status: `HTTP/1.1 ${response.status ?? 200} OK` };
-	}
+$done = obj => {
+  if (typeof obj !== "object") return _done();
 
-	_done(obj);
+  if ($env("Qx")) {
+    const { status = 200, headers, body } = obj.response ?? obj;
+    obj = { statusCode: `HTTP/1.1 ${status} OK`, headers };
+    if (body instanceof Uint8Array) {
+      obj.bodyBytes = body;
+    } else {
+      obj.body = body;
+    }
+  }
+
+  if (typeof obj.body === "object" && !(obj.body instanceof Uint8Array)) {
+    obj.body = JSON.stringify(obj.body);
+  }
+
+  _done(obj);
 };
 
 export const $cache = {
