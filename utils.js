@@ -428,7 +428,8 @@ export const $Done = obj => {
 
   if ($env("Qx")) {
     const { statusCode = 200, status = statusCode, headers, body } = payload;
-    obj = { statusCode: `HTTP/1.1 ${status} OK`, headers };
+    obj = { statusCode: `HTTP/1.1 ${status} OK` };
+	headers && ( obj.headers = headers )
 
     if (body instanceof Uint8Array) {
       obj.bodyBytes = body;
