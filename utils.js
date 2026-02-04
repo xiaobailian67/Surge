@@ -453,7 +453,7 @@ export const $cache = {
   set: (key, value) =>
     (globalThis.$prefs?.setValueForKey ?? $persistentStore.write)(value, key),
   setJson: (key, obj) => $cache.set(key, JSON.stringify(obj)),
-  remove: (key) => $env("Surge") ? $cache.set(key,null) : (globalThis.$prefs ?? $persistentStore).remove(key)
+  remove: (key) => $env("Qx") ? $prefs.removeValueForKey(key) : $cache.set(key,null)
 };
 
 export const $msg = (...a) => {
