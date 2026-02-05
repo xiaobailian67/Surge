@@ -474,45 +474,44 @@ export const $msg = (...a) => {
   });
 };
 
-const format = (...args) => {
-  console.log(
-    args
-      .map(item => {
-        if (item?.stack) {
-          return `${item.toString()}\n${item.stack}`;
-        }
-        if (typeof item === "object") {
-          return JSON.stringify(item, null, 4);
-        }
-        return String(item);
-      })
-      .join("\n")
+export const $log = (() => {
+  const _log = (...args) => {
+    const result = args.map(item => {
+      if (item?.stack) {
+        return `${item.toString()}\n${item.stack}`;
+      }
+      if (typeof item === "object") {
+        return JSON.stringify(item, null, 4);
+      }
+      return String(item);
+    }).join("\n");
+    console.log(result);
+  };
+
+  return Object.assign(_log, {
+    show: (...a) => b => b && _log(...a),
+    time: (id) => _log.time[id] = Date.now(),
+    timeEnd: (id) => {
+      if (_log.time[id]) {
+        _log(`${id ? id + ": " : ""}${Date.now() - _log.time[id]}ms`);
+        delete _log.time[id];
+      }
+    },
+  });
+})();
+
+
+export const $api = (() => {
+  class Internal {
+    static #core = (m, p, b) => new Promise((resolve) => $httpAPI(m, p, b, resolve));
+    static get = (...args) => Internal.#core("GET", ...args);
+    static post = (...args) => Internal.#core("POST", ...args);
+  }
+  return Object.assign(
+    (...args) => (args.length > 1 ? Internal.post(...args) : Internal.get(...args)),
+    Internal
   );
-};
-
-export const $log = Object.assign(format, {
-  time(id) {
-    $log.time[id] = Date.now();
-  },
-  timeEnd(id) {
-    $log(`${id ? id + ": " : ""}${Date.now() - $log.time[id]}ms`);
-  },
-  show(...a) {
-    return b => b && $log(...a);
-  },
-});
-
-const send = {
- post(...a){
-	return this._send("POST", ...a);
-},
- get(...a){
-	return this._send("GET", ...a);
-},
- _send: (m,p,b) => new Promise((ok) => $httpAPI(m,p,b,ok))
-}
-
-export const $api = Object.assign((...a) => send[a.length > 1 ? "post" : "get"](...a), send);
+})();
 
 export const $arg = (alt = {}) => {
   if (!globalThis.$argument) return alt;
