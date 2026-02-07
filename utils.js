@@ -486,7 +486,7 @@ export const $log = (() => {
 
 	LVLS.forEach((key, i) => {
 		log[key] = (...args) => {
-			if (!Math.abs(LVLS.indexOf(log.level?.toLowerCase()))) return;
+			if (i < Math.abs(LVLS.indexOf(log.level?.toLowerCase()))) return;
 			console.log(`[${key.toUpperCase()}] ${fmt(args)}`);
 		};
 	});
