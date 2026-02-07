@@ -475,34 +475,33 @@ export const $msg = (...a) => {
 };
 
 export const $log = (() => {
-	const LVLS = ["debug", "info", "warn", "error"];
-	const fmt = (args) => args.map((v) => {
-				if (v?.stack) return `${v}\n${v.stack}`;
-				if (typeof v === "object") return JSON.stringify(v, null, 4);
-				return String(v);
-			}).join(" ");
+  const LVLS = ["debug", "info", "warn", "error"];
+  const log = (...args) => 
+	log.silent ||
+    console.log(
+      args.map((v) => {
+          if (v?.stack) return `${v}\n${v.stack}`;
+          if (typeof v === "object") return JSON.stringify(v, null, 4);
+          return String(v);
+        }).join(" ")
+    );
 
-	const log = (...args) => console.log(fmt(args));
+  LVLS.forEach((key, i) => {
+    log[key] = (...args) => {
+      if (i < Math.abs(LVLS.indexOf(log.level?.toLowerCase()))) return;
+      log(`[${key.toUpperCase()}]`, ...args);
+    };
+  });
 
-	LVLS.forEach((key, i) => {
-		log[key] = (...args) => {
-			if (i < Math.abs(LVLS.indexOf(log.level?.toLowerCase()))) return;
-			console.log(`[${key.toUpperCase()}] ${fmt(args)}`);
-		};
-	});
-
-	return Object.assign(log, {
-		time: (k = "def") => (log.time[k] = Date.now()),
-		timeEnd: (k = "def") => {
-			if (log.time[k]) {
-				console.log(`⏱️ ${k}: ${Date.now() - log.time[k]}ms`);
-				delete log.time[k];
-			}
-		},
-	});
+  return Object.assign(log, {
+    time: (k = "t") => (log.time[k] = Date.now()),
+    timeEnd: (k = "t") => {
+      if (!log.time[k]) return;
+      log(`⏱️ ${k}: ${Date.now() - log.time[k]}ms`);
+      delete log.time[k];
+    },
+  });
 })();
-
-
 
 export const $api = (() => {
   class Internal {
